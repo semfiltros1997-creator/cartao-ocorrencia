@@ -204,9 +204,10 @@ footer { color: var(--muted); font-size: 13px; max-width: 72ch; }
       </div>
       <div class="linhas">
         <div class="numeros">
-          <div class="campo" data-f="hora"><div class="topo-campo"><label class="rotulo" for="f-hora">Hora</label></div><input class="num" id="f-hora" inputmode="numeric" autocomplete="off"></div>
+          <div class="campo" data-f="hora"><div class="topo-campo"><label class="rotulo" for="f-hora">Hora</label></div><input class="num" id="f-hora" inputmode="numeric" maxlength="5" placeholder="00:00" autocomplete="off"></div>
         </div>
-        <div class="campo largo" data-f="local"><div class="topo-campo"><label class="rotulo" for="f-local">Local</label></div><textarea id="f-local" rows="2" placeholder="Rua, lugar, freguesia"></textarea></div>
+        <div class="campo largo" data-f="rua"><div class="topo-campo"><label class="rotulo" for="f-rua">Local: rua e número</label></div><input id="f-rua" autocomplete="off"></div>
+        <div class="campo largo" data-f="freg"><div class="topo-campo"><label class="rotulo" for="f-freg">Freguesia ou localidade</label></div><input id="f-freg" list="freguesias" autocomplete="off"><datalist id="freguesias"></datalist></div>
         <div id="areaCartao" aria-live="polite" hidden></div>
         <div class="campo largo" data-f="ref"><div class="topo-campo"><label class="rotulo" for="f-ref">Ponto de referência</label></div><input id="f-ref" autocomplete="off" placeholder="Perto de, ao lado de"></div>
         <div class="campo largo" data-f="destino" id="linhaDestino" hidden><div class="topo-campo"><label class="rotulo" for="f-destino">Destino</label></div><input id="f-destino" autocomplete="off"></div>
@@ -621,6 +622,8 @@ function parseOcorrencia(texto) {
   const unir = l => l.filter((v, i) => !l.some((o, j) => j !== i && sem(o).includes(sem(v)) && (o.length > v.length || j < i))).join(', ');
   /* "Lar de Tamel": a freguesia pode vir só na referência. */
   if (!fregs.length && !transp) for (const v of refs) { const f = areaDe(v); if (f) { fregs.push(f.nome); break; } }
+  r.rua = unir(ruas);
+  r.freg = unir(fregs);
   r.local = unir(ruas.concat(fregs));
   r.ref = refs.join(', ');
   r.destino = unir(destinos);
@@ -740,9 +743,18 @@ async function abreCofre(conta, senha) {
   const claro = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b(COFRE.d.i) }, kd, b(COFRE.d.c));
   return JSON.parse(new TextDecoder().decode(claro));
 }
-const CAMPOS = ['hora', 'codu', 'meio', 'contacto', 'prio', 'setor', 'local', 'ref', 'destino', 'nome', 'desc'];
+const juntaLocal = () => [S.campos.rua, S.campos.freg].map(v => (v || '').trim()).filter(Boolean).join(', ');
+const CAMPOS = ['hora', 'codu', 'meio', 'contacto', 'prio', 'setor', 'rua', 'freg', 'ref', 'destino', 'nome', 'desc'];
 const ler = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } };
 const gravar = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+
+/* Só dígitos, com os dois pontos a aparecerem sozinhos: 1432 fica 14:32. */
+function mascaraHora(v) {
+  let d = v.replace(/\D/g, '').slice(0, 4);
+  if (d.length >= 2 && +d.slice(0, 2) > 23) d = d.slice(0, 1);
+  if (d.length >= 3 && d[2] > '5') d = d.slice(0, 2);
+  return d.length > 2 ? d.slice(0, 2) + ':' + d.slice(2) : d;
+}
 
 const hojeHora = () => new Date().toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
 const vazio = () => ({ texto: '', campos: {}, editados: {}, tipo: null, rotulo: '', tipoManual: false, ponto: null, opcoes: [], inicio: null, exemplo: false, id: Date.now(), equipa: [], ditos: [], tirados: [], partDito: false, hospDito: false, semManual: null, semDito: false, valorManual: null, extrasManual: {}, extrasDito: {}, esperaH: '', o2H: '', maisUm: false });
@@ -823,13 +835,14 @@ function atualiza(brilhar) {
   for (const f of CAMPOS) {
     if (S.editados[f]) continue;
     const novo = f === 'hora' ? (p.hora || S.inicio || '') : p[f];
-    if ((S.campos[f] || '') !== (novo || '') && (f === 'local' || f === 'ref')) { S.ponto = null; S.opcoes = []; avisoMapa = ''; }
+    if ((S.campos[f] || '') !== (novo || '') && ['rua', 'freg', 'ref'].includes(f)) { S.ponto = null; S.opcoes = []; avisoMapa = ''; }
     if (brilhar && (S.campos[f] || '') !== (novo || '') && novo) {
       const el = document.querySelector('[data-f="' + f + '"]');
       el.classList.remove('brilho'); void el.offsetWidth; el.classList.add('brilho');
     }
     S.campos[f] = novo;
   }
+  S.campos.local = juntaLocal();
   if (semCodu() && !S.editados.desc) S.campos.desc = motivoDe(S.rotulo);
   desenha();
 }
@@ -1022,9 +1035,8 @@ function mensagem(modo) {
   const c = S.campos, nome = (S.rotulo || (S.tipo ? TIPOS[S.tipo] : 'Ocorrência')).toUpperCase();
   const linhas = [modo === 'wa' ? '*' + nome + '*' : nome];
   const add = (r, v) => { if (v) linhas.push(r + ': ' + v); };
-  const freg = areaDe(c.local);
-  if (freg) linhas.push(freg.nome + (c.hora ? ' · ' + c.hora : '')); else add('Hora', c.hora);
-  add('Local', freg ? (c.local || '').split(', ').filter(p => sem(p) !== sem(freg.nome)).join(', ') : c.local);
+  if (c.freg) linhas.push(c.freg + (c.hora ? ' · ' + c.hora : '')); else add('Hora', c.hora);
+  add('Local', c.rua);
   if (comExtras()) add('Serviço', (c.setor || '').trim());
   add('Referência', c.ref);
   add('Destino', c.destino);
@@ -1109,7 +1121,7 @@ function desenhaRecentes() {
     const d = document.createElement('span'); d.className = 'd';
     d.textContent = (c.S.rotulo || 'Ocorrência') + (c.S.campos.local ? ' · ' + c.S.campos.local : '');
     const b = document.createElement('button'); b.type = 'button'; b.textContent = 'Abrir';
-    b.onclick = () => { largarMic(); S = Object.assign(vazio(), c.S); $('texto').value = S.texto; base = S.texto; desenha(); scrollTo({ top: 0 }); };
+    b.onclick = () => { largarMic(); S = Object.assign(vazio(), c.S); if (!('rua' in S.campos)) S.campos.rua = S.campos.local; $('texto').value = S.texto; base = S.texto; desenha(); scrollTo({ top: 0 }); };
     linha.append(h, d, b);
     caixa.appendChild(linha);
   }
@@ -1200,6 +1212,7 @@ for (const [id, nome] of Object.entries(TIPOS)) {
   };
   $('chips').appendChild(b);
 }
+for (const f of FREGS) { const o = document.createElement('option'); o.value = f.nome; $('freguesias').appendChild(o); }
 for (const s of SETORES) {
   const b = document.createElement('button');
   b.type = 'button'; b.textContent = s;
@@ -1230,10 +1243,12 @@ for (const p of PRIOS) {
   $('prioChips').appendChild(b);
 }
 for (const f of CAMPOS) $('f-' + f).addEventListener('input', e => {
+  if (f === 'hora') e.target.value = mascaraHora(e.target.value);
   /* Apagar o que escreveu devolve o campo ao ditado. */
   if (e.target.value) S.editados[f] = true; else delete S.editados[f];
   S.campos[f] = e.target.value;
-  if (f === 'local' || f === 'ref') { S.ponto = null; S.opcoes = []; avisoMapa = ''; }
+  S.campos.local = juntaLocal();
+  if (['rua', 'freg', 'ref'].includes(f)) { S.ponto = null; S.opcoes = []; avisoMapa = ''; }
   desenha();
 });
 document.querySelector('.grelha').addEventListener('focusin', e => {
