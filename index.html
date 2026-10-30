@@ -195,7 +195,7 @@ footer { color: var(--muted); font-size: 13px; max-width: 72ch; }
       </div>
       <div class="sotaque">
         <label for="lingua">Reconhecer voz em</label>
-        <select id="lingua"><option value="pt-PT">Português de Portugal</option><option value="pt-BR">Português do Brasil</option></select>
+        <select id="lingua"><option value="pt-BR">Português do Brasil</option><option value="pt-PT">Português de Portugal</option></select>
       </div>
       <div>
         <label class="rotulo" for="perguntaArea">É de vocês?</label>
@@ -368,7 +368,7 @@ function detetaTipo(n) {
   let melhor = null, pos = Infinity;
   for (const [id, re] of fortes) { const m = re.exec(n); if (m && m.index < pos) { pos = m.index; melhor = id; } }
   if (melhor) return melhor;
-  if (/\bemergencias?\b|\binem\b|\b112\b|\bambulancia\b|\b[ck]od[uo]\b|\burgencia\b|\bqueda\b|\bcaiu\b|\bdor(?:es)?\b|\binconsciente\b|\bpcr\b|\bavc\b|\bconvuls\w+\b|\bhemorragia\b|\bmal estar\b|\bfalta de ar\b|\bnao respira\b|\bdesmaiou\b|\bdoente\b|\btce\b|\bhiperglicemia\b|\bhipoglicemia\b|\b[mf]\s?\d{1,3}\b/.test(n)) return 'emergencia';
+  if (/\bemergencias?\b|\binem\b|\b112\b|\bambulancia\b|\b[ck]od[uo]\b|\burgencia\b|\bqueda\b|\bcaiu\b|\bdor(?:es)?\b|\binconsciente\b|\bpcr\b|\bavc\b|\bconvuls\w+\b|\bhemorragia\b|\bmal estar\b|\bfalta de ar\b|\bnao respira\b|\bdesmaiou\b|\bdoente\b|\btce\b|\bhiperglicemia\b|\bhipoglicemia\b|\b[mf]\s?\d{1,3}\b|\bmasculino\b|\bfeminino\b|\bp\s?[1-5]\b|\b(?:dispneia|taquicardia|hipotensao|hipertensao|epistaxe|ansiedade|vertigens?|diarreia|nauseas?|prostrad[oa]|confus[oa]|agitad[oa]|alcooliz\w+|etiliz\w+|overdose|afogamento|engasg\w+|parto|gravida|enfarte|eam|dor toracica)\b/.test(n)) return 'emergencia';
   return null;
 }
 
@@ -426,12 +426,12 @@ function cues(tipo) {
     { f: 'local', solo: 1, canon: 1, re: new RegExp('\\b(?:em|n[oa]s?|freguesia d[eoa]|freguesia)\\s+(' + LUGAR_ALT + ')\\b', 'g') },
     { f: 'ref', drop: 1, re: /\b(?:ponto de referencia|referencia)\b[\s:.-]*(?:e\s+|fica\s+)?/g },
     { f: 'ref', re: /\b(ao lado d[eoa]s?|ao pe d[eoa]s?|perto d[eoa]s?|perto|junto a[os]?|junto d[eoa]s?|junto|em frente a[os]?|em frente d[eoa]s?|em frente|proxim[oa] d[eoa]s?|proxim[oa] a[os]?|atras d[eoa]s?|depois d[eoa]s?|a seguir a[os]?|antes d[eoa]s?|na esquina|entre [oa]s?)\b/g },
-    { f: 'ref', not: naoApos, re: /\b(escola|colegio|creche|infantario)\b/g },
+    { f: 'ref', not: naoApos, re: /\b(escola|colegio|creche|infantario|lar(?:\s+de\s+idosos)?)\b/g },
     /* Fora do transporte, "para Barcelos" é o local da ocorrência, não um destino. */
     { f: 'destino', re: new RegExp('\\b(?:para|ate\\s+a[oa]?s?|ate)\\s+(?:(?:fazer|realizar|realizacao de)\\s+)?(?:[oa]s?\\s+|uma?\\s+)?(' + (transp ? 'hospital|centro de saude|clinica|casa|domicilio|lar|consulta|exames?|hemodialise|maternidade|braga|barcelos|famalicao|porto|guimaraes|esposende|viana|povoa' : 'hospital|centro de saude|clinica|maternidade') + ')\\b', 'g') },
     { f: 'destino', drop: 1, re: /\bdestino\b[\s:.-]*(?:e\s+|para\s+)?/g },
     { f: 'desc', drop: 1, re: /\b(?:o que se passa|situacao|motivo|sintomas?)\b[\s:.-]*(?:e\s+)?/g },
-    { f: 'desc', not: naoApos, re: /\b((?:(?:dois|duas|tres|quatro|cinco|seis|\d+)\s+(?!masculino|feminino|homem|mulher|senhora?))?(?:queda de arvore|abertura de porta|fuga de gas|limpeza de via|abastecimento de agua|inundac\w+|cheia|salvamento|desencarceramento|colisao|despiste|capotamento|atropelamento|masculino|feminino|senhora?|sr\.?|sra\.?|homem|mulher|rapaz|rapariga|menino|menina|crianca|bebe|idos[oa]|doente|utente|vitimas?|pessoas?|jovem|feridos?|caiu|queda|dores|dor|inconsciente|tce|hiperglicemia|hipoglicemia|desmaiou|sangue|sangra|hemorragia|fumo|chamas|nao respira|mal estar|falta de ar|dificuldade\w* respirat\w+|vomitos?|tonturas?|febre|desorientad[oa]|sincope|avc|pcr|paragem|fratura|trauma\w*|queimad\w+|intoxica\w+|convuls\w+|a arder|carros?|viaturas?|veiculos?|ligeiros?|pesados?|motas?))\b/g },
+    { f: 'desc', not: naoApos, re: /\b((?:(?:dois|duas|tres|quatro|cinco|seis|\d+)\s+(?!masculino|feminino|homem|mulher|senhora?))?(?:queda de arvore|abertura de porta|fuga de gas|limpeza de via|abastecimento de agua|inundac\w+|cheia|salvamento|desencarceramento|colisao|despiste|capotamento|atropelamento|masculino|feminino|senhora?|sr\.?|sra\.?|homem|mulher|rapaz|rapariga|menino|menina|crianca|bebe|idos[oa]|doente|utente|vitimas?|pessoas?|jovem|feridos?|caiu|queda|dor toracica|dores|dor|inconsciente|tce|hiperglicemia|hipoglicemia|dispneia|taquicardia|hipotensao|hipertensao|epistaxe|ansiedade|vertigens?|diarreia|nauseas?|prostrad[oa]|confus[oa]|agitad[oa]|alcooliz\w+|etiliz\w+|overdose|afogamento|engasg\w+|parto|gravida|enfarte|eam|desmaiou|sangue|sangra|hemorragia|fumo|chamas|nao respira|mal estar|falta de ar|dificuldade\w* respirat\w+|vomitos?|tonturas?|febre|desorientad[oa]|sincope|avc|pcr|paragem|fratura|trauma\w*|queimad\w+|intoxica\w+|convuls\w+|a arder|carros?|viaturas?|veiculos?|ligeiros?|pesados?|motas?))\b/g },
     { f: 'tipo', drop: 1, re: /\b(?:incendios?(?:\s+(?:florestal|urbano|industrial|em mato|de mato|em habitacao|em casa|em veiculo|de veiculo|numa habitacao))?|fogo|acidentes?(?:\s+de viacao)?|emergencias?(?:\s+medicas?)?|transferencias?(?:\s+medicalizadas?)?|recolha de cadaver(?:es)?|transportes? de cadaver(?:es)?|cadaver(?:es)?|transportes?|alta medica|altas?(?=\s+d[ao]\b))\b/g },
   ];
   if (transp) {
@@ -503,8 +503,16 @@ function semEnchimento(s) {
   return limpa(v);
 }
 
+/* Palavras que o reconhecimento de voz troca: acrescentar aqui cada erro novo que aparecer. */
+const VOZ = [
+  [/\b[kc][ou]duros?\b/gi, 'CODU'],
+  [/\bnelson ver[ií]ssimo\b/gi, 'Tamel São Veríssimo'],
+  [/\bo que [eé] fish\b/gi, 'dispneia'],
+];
+const corrigeVoz = s => VOZ.reduce((v, [re, certo]) => v.replace(re, certo), s);
+
 function parseOcorrencia(texto) {
-  const t = texto.replace(/\s*\n+\s*/g, ', ').replace(/\s+/g, ' ').trim();
+  const t = corrigeVoz(texto).replace(/\s*\n+\s*/g, ', ').replace(/\s+/g, ' ').trim();
   const n = sem(t);
   const tipo = detetaTipo(n);
   const achados = [];
@@ -613,6 +621,8 @@ function parseOcorrencia(texto) {
   });
 
   const unir = l => l.filter((v, i) => !l.some((o, j) => j !== i && sem(o).includes(sem(v)) && (o.length > v.length || j < i))).join(', ');
+  /* "Lar de Tamel": a freguesia pode vir só na referência. */
+  if (!fregs.length && !transp) for (const v of refs) { const f = areaDe(v); if (f) { fregs.push(f.nome); break; } }
   r.local = unir(ruas.concat(fregs));
   r.ref = refs.join(', ');
   r.destino = unir(destinos);
@@ -1223,6 +1233,8 @@ $('texto').addEventListener('input', e => {
   if (aOuvir) { base = S.texto; desvio = total; }
   atualiza(true);
 });
+$('lingua').value = ler('cartao.lingua', 'pt-BR');
+$('lingua').addEventListener('change', e => gravar('cartao.lingua', e.target.value));
 $('perguntaArea').addEventListener('input', e => {
   const q = sem(e.target.value.trim()), caixa = $('respostaArea');
   caixa.textContent = '';
