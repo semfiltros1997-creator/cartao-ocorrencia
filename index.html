@@ -517,6 +517,7 @@ const VOZ = [
   [/\b[kc]od[oô]r\b/gi, 'CODU'],
   [/\bcon?dis?pi?n[eé]ia\b/gi, 'com dispneia'],
   [/\bdispin[eé]ia\b/gi, 'dispneia'],
+  [/\bparrinha\b/gi, 'Esparrinha'],
   [/\brua do combatentes\b/gi, 'Rua dos Combatentes'],
   [/\bcombatentes ultramar\b/gi, 'Combatentes do Ultramar'],
 ];
@@ -675,6 +676,15 @@ function parseOcorrencia(texto) {
   });
 
   const unir = l => l.filter((v, i) => !l.some((o, j) => j !== i && sem(o).includes(sem(v)) && (o.length > v.length || j < i))).join(', ');
+  /* "Rua da Igreja Arcozelo": a freguesia dita colada ao fim da rua vai para o seu campo. "Rua de Arcozelo" é nome da rua. */
+  ruas.forEach((v, i) => {
+    const f = FALAS.find(x => !VAGOS.has(x.fala) && new RegExp('[\\s,]' + x.fala + '$').test(sem(v)));
+    if (!f) return;
+    const resto = limpa(v.slice(0, v.length - f.fala.length));
+    if (!resto.includes(' ') || /\b(?:d[eoa]s?)$/i.test(v.slice(0, v.length - f.fala.length).trim())) return;
+    ruas[i] = resto;
+    fregs.push(f.nome);
+  });
   /* "Lar de Tamel": a freguesia pode vir só na referência. */
   if (!fregs.length && !transp) for (const v of refs) { const f = areaDe(v); if (f) { fregs.push(f.nome); break; } }
   /* Freguesia dita solta: fora das ruas e nunca "Barcelos", que aparece sempre em "Bombeiros de Barcelos" e "Barcelos 3". */
