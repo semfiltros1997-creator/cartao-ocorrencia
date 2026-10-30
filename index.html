@@ -874,6 +874,8 @@ const comExtras = () => (S.tipo === 'transporte' || S.tipo === 'transferencia') 
 const textoExtras = () => comExtras() ? Object.keys(EXTRAS).filter(temExtra).map(k => EXTRAS[k]).join(' · ') : '';
 
 const semCodu = () => S.tipo === 'transporte' || S.tipo === 'transferencia';
+/* Numa alta ou ida para casa ou lar, a morada do doente é o destino do serviço. */
+const moradaDestino = () => S.tipo === 'transporte' && !S.campos.destino && (S.casaDita || /^Alta/.test(S.rotulo));
 
 /* Prioridades da triagem do INEM: no cartão aparece só o código. */
 const PRIOS = ['P1', 'P2', 'P3', 'P4', 'P5'];
@@ -956,6 +958,7 @@ function desenha() {
   $('linhaMeio').hidden = !(!S.tipo || COM_AREA.includes(S.tipo) || S.campos.meio);
   $('linhaExtras').hidden = $('linhaSetor').hidden = !comExtras();
   $('linhaNome').hidden = !semCodu();
+  document.querySelector('label[for="f-rua"]').textContent = moradaDestino() ? 'Destino' : 'Local';
   document.querySelector('label[for="f-desc"]').textContent = semCodu() ? 'Motivo' : 'Circunstâncias';
   for (const b of $('setorChips').children) b.setAttribute('aria-pressed', String(sem(b.textContent) === sem((S.campos.setor || '').trim())));
   for (const b of $('extras').children) b.setAttribute('aria-pressed', String(temExtra(b.dataset.k)));
@@ -1130,7 +1133,7 @@ function mensagem(modo) {
   const linhas = [modo === 'wa' ? '*' + nome + '*' : nome];
   const add = (r, v) => { if (v) linhas.push(r + ': ' + v); };
   if (c.freg) linhas.push(c.freg + (c.hora ? ' · ' + c.hora : '')); else add('Hora', c.hora);
-  add('Local', c.rua);
+  add(moradaDestino() ? 'Destino' : 'Local', c.rua);
   if (comExtras()) add('Serviço', (c.setor || '').trim());
   add('Referência', c.ref);
   add('Destino', c.destino);
