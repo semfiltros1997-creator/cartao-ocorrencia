@@ -874,7 +874,7 @@ const particular = () => {
 };
 
 /* Condições do transporte: só aparecem na mensagem quando são positivas. */
-const EXTRAS = { acomp: 'c/ acompanhante', o2: 'c/ O₂', rodas: 'c/ rodas', sentado: 'Sentada', deitado: 'Deitada' };
+const EXTRAS = { acomp: 'c/ acompanhante', o2: 'c/ O₂', rodas: 'c/ rodas', sentado: 'Sentado/a', deitado: 'Deitado/a' };
 const temExtra = k => k in S.extrasManual ? S.extrasManual[k] : !!S.extrasDito[k];
 const comExtras = () => (S.tipo === 'transporte' || S.tipo === 'transferencia') && S.rotulo !== 'Transporte de cadáver';
 const textoExtras = () => comExtras() ? Object.keys(EXTRAS).filter(temExtra).map(k => EXTRAS[k]).join(' · ') : '';
