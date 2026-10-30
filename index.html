@@ -730,7 +730,6 @@ async function abreCofre(conta, senha) {
   return JSON.parse(new TextDecoder().decode(claro));
 }
 const CAMPOS = ['hora', 'codu', 'meio', 'contacto', 'prio', 'setor', 'local', 'ref', 'destino', 'desc'];
-const EXEMPLO = 'Incêndio em mato na Rua da Igreja em Arcozelo perto do cemitério fumo visível da estrada contacto 912 345 678';
 const ler = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } };
 const gravar = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
 
@@ -867,7 +866,7 @@ function desenha() {
   $('copiar').disabled = semDados;
   $('partilhar').disabled = semDados;
   desenhaEquipa(wa, semDados);
-  if (!S.exemplo) gravar('cartao.rascunho', S);
+  guarda.gravar('cartao.rascunho', S);
 }
 
 const temConteudo = () => CAMPOS.some(f => f !== 'hora' && S.campos[f]) || !!S.tipo;
@@ -1171,7 +1170,7 @@ function novaOcorrencia() {
   avisoMapa = '';
   $('texto').value = '';
   $('feedback').textContent = '';
-  try { localStorage.removeItem('cartao.rascunho'); } catch {}
+  guarda.gravar('cartao.rascunho', null);
   estadoMic('Pronto para ditar', 'Fale durante a chamada. O cartão preenche sozinho.');
   atualiza(false);
 }
@@ -1303,25 +1302,20 @@ if (navigator.share && window.top === window.self) {
 setInterval(() => { $('relogio').textContent = new Date().toLocaleTimeString('pt-PT'); }, 1000);
 $('relogio').textContent = new Date().toLocaleTimeString('pt-PT');
 
-const rascunho = ler('cartao.rascunho', null);
+/* O que estava a ser escrito dura só até fechar a aba. */
+const rascunho = guarda.ler('cartao.rascunho', null);
 if (rascunho && (rascunho.texto || Object.keys(rascunho.editados || {}).length)) {
   S = Object.assign(vazio(), rascunho);
   $('texto').value = S.texto;
   base = S.texto;
   atualiza(false);
-} else {
-  S.exemplo = true;
-  S.texto = EXEMPLO;
-  S.inicio = '14:32';
-  $('texto').value = EXEMPLO;
-  atualiza(false);
-}
+} else atualiza(false);
 desenhaRecentes();
 desenhaPrecos();
 
 if (COFRE) {
   /* Limpa o que versões anteriores deixaram guardado no aparelho. */
-  for (const k of ['aberto', 'contactos', 'precos']) { try { localStorage.removeItem('cartao.' + k); } catch {} }
+  for (const k of ['aberto', 'contactos', 'precos', 'rascunho']) { try { localStorage.removeItem('cartao.' + k); } catch {} }
   $('linhaBloquear').hidden = false;
   if (!sessao.ler('cartao.aberto', false)) {
     document.body.classList.add('fechado');
