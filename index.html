@@ -507,7 +507,9 @@ function semEnchimento(s) {
 /* Palavras que o reconhecimento de voz troca: acrescentar aqui cada erro novo que aparecer. */
 const VOZ = [
   [/\b[kc][ou]duros?\b/gi, 'CODU'],
-  [/\b(?:tamb[eé]m|nelson|camel|tamil)(?:\s+eu)?\s+(?:s[aã]o\s+|sou\s+)?ver[ií]ssimo\b/gi, 'Tamel São Veríssimo'],
+  [/\b(?:tamb[eé]m|nelson|camel|tamil|i?tamel)(?:\s+eu)?\s+(?:s[aã]o\s+|sou\s+|so)?ver[ií]ssimo\b/gi, 'Tamel São Veríssimo'],
+  [/\bitamel\b/gi, 'Tamel'],
+  [/(?<!\b(?:tamel|rua|largo|avenida|travessa)\s)\b(?:s[aã]o\s+|so)ver[ií]ssimo\b/gi, 'Tamel São Veríssimo'],
   [/\bo que [eé] fish\b/gi, 'dispneia'],
   [/\b(?:mesmo )?esse m[eé]dico\b/gi, 'emergência médica'],
   [/\balij[oó](?![a-zà-ú])/gi, 'Lijó'],
@@ -525,6 +527,35 @@ function semRepetir(s) {
   let v = s, p;
   do { p = v; v = v.replace(re, '$1$2'); } while (v !== p);
   return v;
+}
+
+function distancia(a, b) {
+  let ant = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    const lin = [i];
+    for (let j = 1; j <= b.length; j++) lin[j] = Math.min(ant[j] + 1, lin[j - 1] + 1, ant[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    ant = lin;
+  }
+  return ant[b.length];
+}
+/* Procura na tabela a freguesia mais parecida com o que a voz escreveu. Nomes curtos ou comuns ficam de fora: um lugar errado manda a equipa ao sítio errado. */
+const NAO_PARECIDA = new Set(['barcelos', 'barcelinhos', 'gueral']);
+function fregParecida(n) {
+  const pal = n.replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(Boolean);
+  let melhor = null, nota = 1;
+  for (const f of FALAS) {
+    if (f.fala.length < 6 || VAGOS.has(f.fala) || NAO_PARECIDA.has(f.fala)) continue;
+    const lim = Math.floor(f.fala.length / 6), nPal = f.fala.split(' ').length;
+    for (let tam = Math.max(1, nPal - 1); tam <= nPal + 1; tam++) {
+      for (let i = 0; i + tam <= pal.length; i++) {
+        const s = pal.slice(i, i + tam).join(' ');
+        if (Math.abs(s.length - f.fala.length) > lim) continue;
+        const d = distancia(s, f.fala);
+        if (d <= lim && d / f.fala.length < nota) { nota = d / f.fala.length; melhor = f.nome; }
+      }
+    }
+  }
+  return melhor;
 }
 
 function parseOcorrencia(texto) {
@@ -648,8 +679,9 @@ function parseOcorrencia(texto) {
   if (!fregs.length && !transp) for (const v of refs) { const f = areaDe(v); if (f) { fregs.push(f.nome); break; } }
   /* Freguesia dita solta: fora das ruas e nunca "Barcelos", que aparece sempre em "Bombeiros de Barcelos" e "Barcelos 3". */
   if (!fregs.length && !transp) {
-    const f = areaDe(ruas.reduce((s, v) => s.split(sem(v)).join(' '), n));
-    if (f && sem(f.nome) !== 'barcelos') fregs.push(f.nome);
+    const resto = ruas.reduce((s, v) => s.split(sem(v)).join(' '), n);
+    const f = areaDe(resto), certa = f && sem(f.nome) !== 'barcelos' ? f.nome : fregParecida(resto);
+    if (certa) fregs.push(certa);
   }
   r.rua = unir(ruas);
   r.freg = unir(fregs);
