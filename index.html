@@ -108,8 +108,6 @@ select { font: 500 15px/1 var(--body); min-height: 36px; border: 1.5px solid var
 #areaCartao[data-nossa="sim"], .resposta[data-nossa="sim"] { color: var(--send); }
 #areaCartao[data-nossa="nao"], .resposta[data-nossa="nao"] { background: var(--warn-bg); color: var(--warn-ink); }
 .resposta { border: 1px solid var(--rule); border-radius: 6px; padding: 6px 10px; }
-#respostaArea { display: grid; gap: 6px; padding-top: 6px; }
-#perguntaArea { width: 100%; border: 1.5px solid var(--rule); border-radius: 6px; background: var(--paper); color: var(--ink); font: 500 17px/1.3 var(--body); padding: 9px 10px; margin-top: 6px; }
 .extras { display: flex; flex-wrap: wrap; gap: 6px; padding-bottom: 4px; }
 .extras button { min-height: 40px; font-size: 15px; }
 .extras button[aria-pressed="true"], #btnSemNumero[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
@@ -197,11 +195,6 @@ footer { color: var(--muted); font-size: 13px; max-width: 72ch; }
         <label for="lingua">Reconhecer voz em</label>
         <select id="lingua"><option value="pt-BR">Português do Brasil</option><option value="pt-PT">Português de Portugal</option></select>
       </div>
-      <div>
-        <label class="rotulo" for="perguntaArea">É de vocês?</label>
-        <input id="perguntaArea" autocomplete="off" placeholder="Escreva a freguesia">
-        <div id="respostaArea" aria-live="polite"></div>
-      </div>
     </section>
 
     <section class="ficha" aria-label="Cartão">
@@ -217,6 +210,7 @@ footer { color: var(--muted); font-size: 13px; max-width: 72ch; }
         <div id="areaCartao" aria-live="polite" hidden></div>
         <div class="campo largo" data-f="ref"><div class="topo-campo"><label class="rotulo" for="f-ref">Ponto de referência</label></div><input id="f-ref" autocomplete="off" placeholder="Perto de, ao lado de"></div>
         <div class="campo largo" data-f="destino" id="linhaDestino" hidden><div class="topo-campo"><label class="rotulo" for="f-destino">Destino</label></div><input id="f-destino" autocomplete="off"></div>
+        <div class="campo largo" data-f="nome" id="linhaNome" hidden><div class="topo-campo"><label class="rotulo" for="f-nome">Utente</label></div><input id="f-nome" autocomplete="off"></div>
         <div class="campo largo" data-f="setor" id="linhaSetor" hidden>
           <div class="topo-campo"><label class="rotulo" for="f-setor">Serviço do hospital</label></div>
           <input id="f-setor" autocomplete="off">
@@ -401,12 +395,13 @@ function cues(tipo) {
   const naoApos = /\b(?:d[oa]|de)\s$/;
   const lista = [
     /* Conversa da chamada: marca o fim do que vinha antes e nunca entra no cartão. */
-    { f: 'ruido', drop: 1, re: /\b(?:ok|ta (?:bem|bom|ok)|esta (?:bem|bom|ok)|sim|certo|pronto|obrigad[oa]|boa tarde|boa noite|bom dia|temos disponibilidade|nao temos disponibilidade|qual (?:e )?a morada|(?:e )?de voces|no local|(?:a )?autoridade)\b/g },
+    { f: 'ruido', drop: 1, re: /\b(?:ok|ta (?:bem|bom|ok)|esta (?:bem|bom|ok)|sim|certo|pronto|obrigad[oa]|boa tarde|boa noite|bom dia|temos disponibilidade|nao temos disponibilidade|qual (?:e )?a morada|(?:e )?de voces|no local|(?:a )?autoridade|(?:e )?pago no momento|paga no momento|tem (?:que|de) pagar|vai pagar|(?:sao )?\d+ euros)\b/g },
     /* Como no cartão em papel: "Lijó 14:31 ...", com a freguesia logo no início e sem "em". */
     { f: 'local', solo: 1, canon: 1, re: new RegExp('^(?:emergencias?(?:\\s+medicas?)?[\\s,:-]+)?(' + LUGAR_ALT + ')\\b(?![\\s,]*\\d{1,2}(?![\\d:h]))', 'g') },
     { f: 'sexo', re: /\b([mf])\s?(\d{1,3})\b/g },
     { f: 'meio', drop: 1, re: /\b(?:vai|vao|sai|segue)\s+(?:[oa]\s+)?(barcelos|barcelinhos|viatodos)[\s,]*(\d{1,2}|um|dois|tres|quatro|cinco|seis|sete|oito|nove)\b/g },
     { f: 'local', solo: 1, canon: 1, re: new RegExp('\\b(?:emergencias?(?:\\s+medicas?)?|acidentes?|incendios?|ocorrencias?|servicos?)\\s+(?:para|em|n[oa])\\s+(' + LUGAR_ALT + ')\\b', 'g') },
+    { f: 'nome', drop: 1, re: /\b(?:nome d[aeo]s?\s+(?:utente|doente|vitima|paciente|senhora?|pessoa)(?:\s+e)?|nome\s+e|chama-se|se chama)\b[\s:.,-]*(?:[oa]\s+)?/g },
     { f: 'codu', drop: 1, re: /\b(?:numero\s+(?:d[oea]\s+)?)?(?:cod[uo]s?|kod[uo]s?|cody|codigo|fichas?)\b[\s:.,-]*(?:e\s+)?(?:o\s+)?(?:numero\s+|n\.?\s+)?/g },
     { f: 'sado', drop: 1, re: /\b(?:(?:numero\s+(?:do\s+|de\s+)?)?sad[ou]s?|numero do comando)\b[\s:.,-]*(?:e\s+)?(?:o\s+)?(?:numero\s+|n\.?\s+)?/g },
     { f: 'bombeiro', drop: 1, re: /\bbombeiros?\b/g },
@@ -422,7 +417,7 @@ function cues(tipo) {
     { f: 'hora', re: /\b(?:as|pelas)\s+(\d{1,2})\s*(?:h|horas)\b/g },
     { f: 'hora', re: /\b(\d{1,2})[:h](\d{2})\b/g },
     { f: 'local', drop: 1, not: /\b(?:n[oa]|a[oa]|d[oa])\s$/, re: /\b(?:localizacao|local|morada|endereco)\b[\s:.-]*(?:e\s+|fica\s+)?(?:n[oa]\s+|em\s+)?/g },
-    { f: 'local', not: naoApos, re: /(?:\b(?:n[oa]s?|em|pela?)\s+)?\b(rua|r(?=\.?\s+[\da-z])|avenida|av|travessa|largo|praca|campo,?\s+\d+ de \w+|campo d[aeo]s?|estrada nacional|estrada|en\s?\d+|alameda|caminho|calcada|beco|urbanizacao|bairro|lugar|quinta|zona industrial|parque industrial)\b/g },
+    { f: 'local', not: naoApos, re: /(?:\b(?:n[oa]s?|em|pela?)\s+)?\b(rua|r(?=\.?\s+[\da-z])|avenida|av|travessa|largo|praceta|pct|praca|campo,?\s+\d+ de \w+|campo d[aeo]s?|estrada nacional|estrada|en\s?\d+|alameda|caminho|calcada|beco|urbanizacao|bairro|lugar|quinta|zona industrial|parque industrial)\b/g },
     { f: 'local', solo: 1, canon: 1, re: new RegExp('\\b(?:em|n[oa]s?|freguesia d[eoa]|freguesia)\\s+(' + LUGAR_ALT + ')\\b', 'g') },
     { f: 'ref', drop: 1, re: /\b(?:ponto de referencia|referencia)\b[\s:.-]*(?:e\s+|fica\s+)?/g },
     { f: 'ref', re: /\b(ao lado d[eoa]s?|ao pe d[eoa]s?|perto d[eoa]s?|perto|junto a[os]?|junto d[eoa]s?|junto|em frente a[os]?|em frente d[eoa]s?|em frente|proxim[oa] d[eoa]s?|proxim[oa] a[os]?|atras d[eoa]s?|depois d[eoa]s?|a seguir a[os]?|antes d[eoa]s?|na esquina|entre [oa]s?)\b/g },
@@ -486,7 +481,7 @@ function limpa(v) {
   return v.replace(/^[\s,;.:-]+/, '').replace(/^(?:e|que)\s+/i, '').trim();
 }
 
-const LIGA = new Set(['de', 'do', 'da', 'dos', 'das', 'e', 'a', 'o']);
+const LIGA = new Set(['de', 'do', 'da', 'dos', 'das', 'e', 'a', 'o', 'no', 'na', 'em']);
 function titulo(s) {
   return s.split(' ').map((p, i) => (i && LIGA.has(p.toLowerCase())) ? p.toLowerCase() : p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
 }
@@ -538,7 +533,7 @@ function parseOcorrencia(texto) {
     ate = h.fim;
   }
 
-  const r = { tipo, rotulo: rotuloTipo(tipo, n), local: '', ref: '', destino: '', desc: '', codu: '', sado: '', contacto: '', hora: '', bombeiros: [], particular: false, quem: '', semNumero: false, hospital: false, prio: '', extras: {}, setor: '', meio: '' };
+  const r = { tipo, rotulo: rotuloTipo(tipo, n), local: '', ref: '', destino: '', desc: '', codu: '', sado: '', contacto: '', nome: '', hora: '', bombeiros: [], particular: false, quem: '', semNumero: false, hospital: false, prio: '', extras: {}, setor: '', meio: '' };
   const ruas = [], fregs = [], refs = [], destinos = [], partes = [];
   const sobra = (ini, fim) => { if (fim > ini) partes.push({ ini, fim, s: t.slice(ini, fim), solto: 1 }); };
   const transp = tipo === 'transporte' || tipo === 'transferencia';
@@ -555,6 +550,9 @@ function parseOcorrencia(texto) {
       if (f === 'contacto' && d) r.contacto = formataTelefone(d);
       lido = f2;
       sobra(f2, Math.max(fim, f2));
+    } else if (f === 'nome') {
+      const v = t.slice(h.val, fim).split(/[,.?!]|\s(?:ela|ele|que|tem|vai|est[aá]|para|nasceu|idade|anos|mora)\b/i)[0];
+      r.nome = titulo(limpa(v).split(' ').slice(0, 5).join(' '));
     } else if (f === 'coduNu') {
       if (!r.codu) r.codu = h.m[1].replace(/\D/g, '');
       sobra(h.fim, fim);
@@ -636,11 +634,22 @@ function parseOcorrencia(texto) {
   }
   const frases = blocos.map(p => limpa(p.s).replace(/^uma?\s+(?=\S)/i, '')).filter(v => v.length >= 3);
   const desc = frases.join(', ');
-  r.desc = desc.charAt(0).toUpperCase() + desc.slice(1);
+  /* Nos transportes não há circunstâncias: o motivo vem do tipo de serviço. */
+  r.desc = transp ? '' : desc.charAt(0).toUpperCase() + desc.slice(1);
   return r;
 }
 
-const RUA = /\b(?:rua|avenida|av|travessa|largo|praca|campo\s+\d+|campo d[aeo]s?|estrada|en\s?\d+|alameda|caminho|calcada|urbanizacao)\b/;
+function motivoDe(rotulo) {
+  const n = sem(rotulo || '');
+  if (/transferencia/.test(n)) return 'Transferência';
+  if (/exame/.test(n)) return 'Realização de exame';
+  if (/consulta/.test(n)) return 'Consulta';
+  if (/cadaver/.test(n)) return 'Transporte de cadáver';
+  if (/alta/.test(n)) return 'Alta médica';
+  return 'Transporte';
+}
+
+const RUA = /\b(?:rua|avenida|av|travessa|largo|praceta|pct|praca|campo\s+\d+|campo d[aeo]s?|estrada|en\s?\d+|alameda|caminho|calcada|urbanizacao)\b/;
 const refNua = r => r.replace(/^(?:ao lado|ao p[eé]|perto|junto|em frente|pr[oó]xim[oa]|atr[aá]s|depois|a seguir|antes)(?:\s+(?:de|do|da|dos|das|a|ao|aos|às|as))?\s+/i, '');
 const foraDeBarcelos = s => FORA.some(l => sem(s).includes(sem(l)));
 
@@ -704,6 +713,8 @@ function valorTransporte({ local, destino, precos, valorManual, volta, esperaH, 
 function consultasMapa(c) {
   const ref = refNua(c.ref || ''), lista = [];
   const sufixo = s => (s = s.replace(/[()]/g, '').replace(/^(?:Urgência|Pisos?)(?=,|$)/, 'Hospital de Barcelos'), foraDeBarcelos(s) || /\bbarcelos$/i.test(s) ? s + ', Portugal' : s + ', Barcelos, Portugal');
+  /* Numa alta, a morada do doente vem no destino. */
+  if (!c.local && c.destino) lista.push(sufixo(c.destino.replace(/^Casa,\s*/, '')));
   if (c.local && RUA.test(sem(c.local))) lista.push(sufixo(c.local));
   if (c.local && ref) lista.push(sufixo(ref + ', ' + c.local));
   if (c.local && !RUA.test(sem(c.local))) lista.push(sufixo(c.local));
@@ -729,7 +740,7 @@ async function abreCofre(conta, senha) {
   const claro = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b(COFRE.d.i) }, kd, b(COFRE.d.c));
   return JSON.parse(new TextDecoder().decode(claro));
 }
-const CAMPOS = ['hora', 'codu', 'meio', 'contacto', 'prio', 'setor', 'local', 'ref', 'destino', 'desc'];
+const CAMPOS = ['hora', 'codu', 'meio', 'contacto', 'prio', 'setor', 'local', 'ref', 'destino', 'nome', 'desc'];
 const ler = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } };
 const gravar = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
 
@@ -819,6 +830,7 @@ function atualiza(brilhar) {
     }
     S.campos[f] = novo;
   }
+  if (semCodu() && !S.editados.desc) S.campos.desc = motivoDe(S.rotulo);
   desenha();
 }
 
@@ -836,8 +848,8 @@ function desenha() {
   $('linhaPrio').hidden = $('prioBloco').hidden = !(S.tipo === 'emergencia' || S.campos.prio);
   $('linhaMeio').hidden = !(!S.tipo || COM_AREA.includes(S.tipo) || S.campos.meio);
   $('linhaExtras').hidden = $('linhaSetor').hidden = !comExtras();
-  /* Em transportes o tipo já diz o motivo: o campo só aparece se tiver sido dito algo mais. */
-  $('linhaDesc').hidden = (S.tipo === 'transporte' || S.tipo === 'transferencia') && !S.campos.desc;
+  $('linhaNome').hidden = !semCodu();
+  document.querySelector('label[for="f-desc"]').textContent = semCodu() ? 'Motivo' : 'Circunstâncias';
   for (const b of $('setorChips').children) b.setAttribute('aria-pressed', String(sem(b.textContent) === sem((S.campos.setor || '').trim())));
   for (const b of $('extras').children) b.setAttribute('aria-pressed', String(temExtra(b.dataset.k)));
   const prio = (S.campos.prio || '').trim().toUpperCase();
@@ -1017,7 +1029,8 @@ function mensagem(modo) {
   add('Referência', c.ref);
   add('Destino', c.destino);
   if (textoExtras()) linhas.push(textoExtras());
-  add('Circunstâncias', c.desc);
+  if (semCodu()) add('Utente', c.nome);
+  add(semCodu() ? 'Motivo' : 'Circunstâncias', c.desc);
   add('Prioridade', (c.prio || '').trim().toUpperCase()); if (!semCodu()) add('CODU', c.codu);
   const cob = cobranca();
   if (cob && cob.estado === 'cobrar') add('Cobrar', euros(cob.valor) || 'valor por confirmar');
@@ -1231,20 +1244,6 @@ $('texto').addEventListener('input', e => {
   S.texto = e.target.value;
   if (aOuvir) { base = S.texto; desvio = total; }
   atualiza(true);
-});
-$('perguntaArea').addEventListener('input', e => {
-  const q = sem(e.target.value.trim()), caixa = $('respostaArea');
-  caixa.textContent = '';
-  if (q.length < 2) return;
-  const itens = [...new Set(FALAS.filter(f => f.fala.includes(q)).flatMap(f => f.itens))].slice(0, 6);
-  if (!itens.length) { caixa.textContent = 'Freguesia não encontrada na tabela.'; return; }
-  for (const i of itens) {
-    const d = document.createElement('div');
-    d.className = 'resposta';
-    d.dataset.nossa = i.area === NOSSA ? 'sim' : 'nao';
-    d.textContent = (i.area === NOSSA ? 'Sim' : 'Não, é de ' + CORPOS[i.area]) + ' · ' + i.nome + ' · ' + kmTexto(i.km);
-    caixa.appendChild(d);
-  }
 });
 $('bombeiro').addEventListener('input', () => {
   const v = $('bombeiro').value.trim(), c = /^h?\d{3}$/i.test(v) && exatoB(v);
