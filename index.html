@@ -365,7 +365,7 @@ function detetaTipo(n) {
   let melhor = null, pos = Infinity;
   for (const [id, re] of fortes) { const m = re.exec(n); if (m && m.index < pos) { pos = m.index; melhor = id; } }
   if (melhor) return melhor;
-  if (/\bemergencias?\b|\binem\b|\b112\b|\bambulancia\b|\b[ck]od[uo]\b|\burgencia\b|\bqueda\b|\bcaiu\b|\bdor(?:es)?\b|\binconsciente\b|\bpcr\b|\bavc\b|\bconvuls\w+\b|\bhemorragia\b|\bmal estar\b|\bfalta de ar\b|\bnao respira\b|\bdesmaiou\b|\bdoente\b|\btce\b|\bhiperglicemia\b|\bhipoglicemia\b|\b[mf]\s?\d{1,3}\b|\bmasculino\b|\bfeminino\b|\bp\s?[1-5]\b|\b(?:dispneia|taquicardia|hipotensao|hipertensao|epistaxe|ansiedade|vertigens?|diarreia|nauseas?|prostrad[oa]|confus[oa]|agitad[oa]|alcooliz\w+|etiliz\w+|overdose|afogamento|engasg\w+|parto|gravida|enfarte|eam|dor toracica)\b/.test(n)) return 'emergencia';
+  if (/\bemergencias?\b|\binem\b|\b112\b|\bambulancia\b|\b[ck]od[uo]\b|\burgencia\b|\bqueda\b|\bcaiu\b|\bdor(?:es)?\b|\binconsciente\b|\bpcr\b|\bavc\b|\bconvuls\w+\b|\bhemorragia\b|\bmal estar\b|\bfalta de ar\b|\bnao respira\b|\bdesmaiou\b|\bdoente\b|\btce\b|\bhiperglicemia\b|\bhipoglicemia\b|\b[mf]\s?\d{1,3}\b|\bmasculino\b|\bfeminino\b|\bp\s?[1-5]\b|\b(?:dispneia|astenia|palidez|sudorese|cianose|taquicardia|hipotensao|hipertensao|epistaxe|ansiedade|vertigens?|diarreia|nauseas?|prostrad[oa]|confus[oa]|agitad[oa]|alcooliz\w+|etiliz\w+|overdose|afogamento|engasg\w+|parto|gravida|enfarte|eam|dor toracica)\b/.test(n)) return 'emergencia';
   return null;
 }
 
@@ -422,16 +422,16 @@ function cues(tipo) {
     { f: 'hora', re: /\b(?:as|pelas)\s+(\d{1,2})\s*(?:h|horas)\b/g },
     { f: 'hora', re: /\b(\d{1,2})[:h](\d{2})\b/g },
     { f: 'local', drop: 1, not: /\b(?:n[oa]|a[oa]|d[oa])\s$/, re: /\b(?:localizacao|local|morada|endereco)\b[\s:.-]*(?:e\s+|fica\s+)?(?:n[oa]\s+|em\s+)?/g },
-    { f: 'local', not: naoApos, re: /(?:\b(?:n[oa]s?|em|pela?)\s+)?\b(rua|r(?=\.?\s+[\da-z])|avenida|av|travessa|largo|praceta|pct|praca|campo,?\s+\d+ de \w+|campo d[aeo]s?|estrada nacional|estrada|en\s?\d+|alameda|caminho|calcada|beco|urbanizacao|bairro|lugar|quinta|zona industrial|parque industrial)\b/g },
+    { f: 'local', not: naoApos, re: /(?:\b(?:n[oa]s?|em|pela?)\s+)?\b(rua|r(?=\.?\s+[\da-z])|avenida|av|travessa|largo|praceta|pct|praca|ruela|viela|rotunda|vereda|campo,?\s+\d+ de \w+|campo d[aeo]s?|estrada nacional|estrada|en\s?\d+|alameda|caminho|calcada|beco|urbanizacao|bairro|lugar|quinta|zona industrial|parque industrial)\b/g },
     { f: 'local', solo: 1, canon: 1, re: new RegExp('\\b(?:em|n[oa]s?|freguesia d[eoa]|freguesia)\\s+(' + LUGAR_ALT + ')\\b', 'g') },
     { f: 'ref', drop: 1, re: /\b(?:ponto de referencia|referencia)\b[\s:.-]*(?:e\s+|fica\s+)?/g },
     { f: 'ref', re: /\b(ao lado d[eoa]s?|ao pe d[eoa]s?|perto d[eoa]s?|perto|junto a[os]?|junto d[eoa]s?|junto|em frente a[os]?|em frente d[eoa]s?|em frente|proxim[oa] d[eoa]s?|proxim[oa] a[os]?|proxim[oa]|atras d[eoa]s?|depois d[eoa]s?|a seguir a[os]?|antes d[eoa]s?|na esquina|entre [oa]s?)\b/g },
-    { f: 'ref', not: naoApos, re: /\b(escola|colegio|creche|infantario|lar(?:\s+de\s+idosos)?)\b/g },
+    { f: 'ref', not: naoApos, re: /\b(escola|colegio|creche|infantario|santa casa|lar(?:\s+de\s+idosos)?)\b/g },
     /* Fora do transporte, "para Barcelos" é o local da ocorrência, não um destino. */
     { f: 'destino', re: new RegExp('\\b(?:para|ate\\s+a[oa]?s?|ate)\\s+(?:(?:fazer|realizar|realizacao de)\\s+)?(?:[oa]s?\\s+|uma?\\s+)?(' + (transp ? 'hospital|centro de saude|clinica|casa|domicilio|lar|consulta|exames?|hemodialise|maternidade|braga|barcelos|famalicao|porto|guimaraes|esposende|viana|povoa' : 'hospital|centro de saude|clinica|maternidade') + ')\\b', 'g') },
     { f: 'destino', drop: 1, re: /\bdestino\b[\s:.-]*(?:e\s+|para\s+)?/g },
     { f: 'desc', drop: 1, re: /\b(?:o que se passa|situacao|motivo|sintomas?)\b[\s:.-]*(?:e\s+)?/g },
-    { f: 'desc', not: naoApos, re: /\b((?:(?:dois|duas|tres|quatro|cinco|seis|\d+)\s+(?!masculino|feminino|homem|mulher|senhora?))?(?:queda de arvore|abertura de porta|fuga de gas|limpeza de via|abastecimento de agua|inundac\w+|cheia|salvamento|desencarceramento|colisao|despiste|capotamento|atropelamento|masculino|feminino|senhora?|sr\.?|sra\.?|homem|mulher|rapaz|rapariga|menino|menina|crianca|bebe|idos[oa]|doente|utente|vitimas?|pessoas?|jovem|feridos?|caiu|queda|dor toracica|dores|dor|inconsciente|tce|hiperglicemia|hipoglicemia|dispneia|taquicardia|hipotensao|hipertensao|epistaxe|ansiedade|vertigens?|diarreia|nauseas?|prostrad[oa]|confus[oa]|agitad[oa]|alcooliz\w+|etiliz\w+|overdose|afogamento|engasg\w+|parto|gravida|enfarte|eam|desmaiou|sangue|sangra|hemorragia|fumo|chamas|nao respira|mal estar|falta de ar|dificuldade\w* respirat\w+|vomitos?|tonturas?|febre|desorientad[oa]|sincope|avc|pcr|paragem|fratura|trauma\w*|queimad\w+|intoxica\w+|convuls\w+|a arder|carros?|viaturas?|veiculos?|ligeiros?|pesados?|motas?))\b/g },
+    { f: 'desc', not: naoApos, re: /\b((?:(?:dois|duas|tres|quatro|cinco|seis|\d+)\s+(?!masculino|feminino|homem|mulher|senhora?))?(?:queda de arvore|abertura de porta|fuga de gas|limpeza de via|abastecimento de agua|inundac\w+|cheia|salvamento|desencarceramento|colisao|despiste|capotamento|atropelamento|masculino|feminino|senhora?|sr\.?|sra\.?|homem|mulher|rapaz|rapariga|menino|menina|crianca|bebe|idos[oa]|doente|utente|vitimas?|pessoas?|jovem|feridos?|caiu|queda|dor toracica|dores|dor|inconsciente|tce|hiperglicemia|hipoglicemia|dispneia|astenia|palidez|sudorese|cianose|taquicardia|hipotensao|hipertensao|epistaxe|ansiedade|vertigens?|diarreia|nauseas?|prostrad[oa]|confus[oa]|agitad[oa]|alcooliz\w+|etiliz\w+|overdose|afogamento|engasg\w+|parto|gravida|enfarte|eam|desmaiou|sangue|sangra|hemorragia|fumo|chamas|nao respira|mal estar|falta de ar|dificuldade\w* respirat\w+|vomitos?|tonturas?|febre|desorientad[oa]|sincope|avc|pcr|paragem|fratura|trauma\w*|queimad\w+|intoxica\w+|convuls\w+|a arder|carros?|viaturas?|veiculos?|ligeiros?|pesados?|motas?))\b/g },
     { f: 'tipo', drop: 1, re: /\b(?:incendios?(?:\s+(?:florestal|urbano|industrial|em mato|de mato|em habitacao|em casa|em veiculo|de veiculo|numa habitacao))?|fogo|acidentes?(?:\s+de viacao)?|emergencias?(?:\s+medicas?)?|transferencias?(?:\s+medicalizadas?)?|recolha de cadaver(?:es)?|transportes? de cadaver(?:es)?|cadaver(?:es)?|transportes?|alta medica|altas?(?=\s+d[ao]\b))\b/g },
   ];
   if (transp) {
@@ -518,6 +518,8 @@ const VOZ = [
   [/\bcon?dis?pi?n[eé]ia\b/gi, 'com dispneia'],
   [/\bdispin[eé]ia\b/gi, 'dispneia'],
   [/\bparrinha\b/gi, 'Esparrinha'],
+  [/\b(?:av(?:enida)?\.?\s+)?(?:d?os\s+)?combatentes\s+(?:da\s+)?grande\s+guerra\b/gi, 'Avenida dos Combatentes da Grande Guerra'],
+  [/(?<!\b(?:rua|travessa|lugar)\s+d[eo]s?\s)\bpalhais\b/gi, 'palidez'],
   [/\brua do combatentes\b/gi, 'Rua dos Combatentes'],
   [/\bcombatentes ultramar\b/gi, 'Combatentes do Ultramar'],
 ];
@@ -725,7 +727,7 @@ function motivoDe(rotulo) {
   return 'Transporte';
 }
 
-const RUA = /\b(?:rua|avenida|av|travessa|largo|praceta|pct|praca|campo\s+\d+|campo d[aeo]s?|estrada|en\s?\d+|alameda|caminho|calcada|urbanizacao)\b/;
+const RUA = /\b(?:rua|avenida|av|travessa|largo|praceta|pct|praca|ruela|viela|rotunda|vereda|campo\s+\d+|campo d[aeo]s?|estrada|en\s?\d+|alameda|caminho|calcada|urbanizacao)\b/;
 const refNua = r => r.replace(/^(?:ao lado|ao p[eé]|perto|junto|em frente|pr[oó]xim[oa]|atr[aá]s|depois|a seguir|antes)(?:\s+(?:de|do|da|dos|das|a|ao|aos|às|as))?\s+/i, '');
 const foraDeBarcelos = s => FORA.some(l => sem(s).includes(sem(l)));
 
@@ -794,7 +796,7 @@ function consultasMapa(c) {
   if (c.local && RUA.test(sem(c.local))) lista.push(sufixo(c.local));
   if (c.local && ref) lista.push(sufixo(ref + ', ' + c.local));
   if (c.local && !RUA.test(sem(c.local))) lista.push(sufixo(c.local));
-  if (ref) lista.push(sufixo(ref));
+  if (ref && !c.local) lista.push(sufixo(ref));
   return lista.filter((q, i) => lista.indexOf(q) === i);
 }
 /*PARSER-END*/
