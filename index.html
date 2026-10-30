@@ -186,7 +186,7 @@ footer { color: var(--muted); font-size: 13px; max-width: 72ch; }
         </button>
         <div class="mic-texto">
           <div id="estado" aria-live="polite">Pronto para ditar</div>
-          <div id="dica">Fale durante a chamada. O cartão preenche sozinho.</div>
+          <div id="dica">Fale durante a chamada. O cartão preenche quando parar de gravar.</div>
         </div>
       </div>
       <div>
@@ -398,7 +398,7 @@ function cues(tipo) {
   const naoApos = /\b(?:d[oa]|de)\s$/;
   const lista = [
     /* Conversa da chamada: marca o fim do que vinha antes e nunca entra no cartão. */
-    { f: 'ruido', drop: 1, re: /\b(?:ok|ta (?:bem|bom|ok)|esta (?:bem|bom|ok)|sim|certo|pronto|obrigad[oa]|boa tarde|boa noite|bom dia|temos disponibilidade|nao temos disponibilidade|qual (?:e )?a morada|(?:e )?de voces|no local|(?:a )?autoridade|(?:de )?uma coisa|logo que possivel|vai uma ambulancia|(?:e )?pago no momento|paga no momento|tem (?:que|de) pagar|vai pagar|(?:sao )?\d+ euros)\b/g },
+    { f: 'ruido', drop: 1, re: /\b(?:ok|ta (?:bem|bom|ok)|esta (?:bem|bom|ok)|sim|certo|pronto|obrigad[oa]|boa tarde|boa noite|bom dia|temos disponibilidade|nao temos disponibilidade|qual (?:e )?a morada|(?:e )?de voces|no local|(?:a )?autoridade|(?:de )?uma coisa|confirme para mim|era so isso(?: mesmo)?|logo que possivel|vai uma ambulancia|(?:e )?pago no momento|paga no momento|tem (?:que|de) pagar|vai pagar|(?:sao )?\d+ euros)\b/g },
     /* Como no cartão em papel: "Lijó 14:31 ...", com a freguesia logo no início e sem "em". */
     { f: 'local', solo: 1, canon: 1, re: new RegExp('^(?:emergencias?(?:\\s+medicas?)?[\\s,:-]+)?(' + LUGAR_ALT + ')\\b(?![\\s,]*\\d{1,2}(?![\\d:h]))', 'g') },
     { f: 'sexo', re: /\b([mf])\s?(\d{1,3})\b/g },
@@ -435,6 +435,7 @@ function cues(tipo) {
     { f: 'tipo', drop: 1, re: /\b(?:incendios?(?:\s+(?:florestal|urbano|industrial|em mato|de mato|em habitacao|em casa|em veiculo|de veiculo|numa habitacao))?|fogo|acidentes?(?:\s+de viacao)?|emergencias?(?:\s+medicas?)?|transferencias?(?:\s+medicalizadas?)?|recolha de cadaver(?:es)?|transportes? de cadaver(?:es)?|cadaver(?:es)?|transportes?|alta medica|alta(?=\s+para\b)|altas?(?=\s+d[ao]\b))\b/g },
   ];
   if (transp) {
+    lista.push({ f: 'hosp', not: /\b(?:d[oa]|desde)\s$/, re: new RegExp('\\b(?:' + HOSP.map(p => p.re).join('|') + ')\\b', 'g') });
     lista.push({ f: 'setor', solo: 1, re: new RegExp('\\b(?:(?:esta\\s+)?n[oa]\\s+|d[oa]\\s+|servico de\\s+)?(' + SETORES.map(sem).join('|') + ')\\b', 'g') });
     lista.push({ f: 'extraNao', drop: 1, re: /\b(?:sem|nao tem|nao leva|nao faz|nao precisa(?: de)?|nao vai(?: com)?)\s+(?:[oa]\s+)?(acompanhantes?|oxigenio|o\s?2|cadeira de rodas|rodas|acamad[oa]|deitad[oa]|sentad[oa])\b|\b(acompanhantes?|oxigenio|o\s?2|rodas)\s+nao\b/g });
     lista.push({ f: 'extra', id: 'deitado', drop: 1, re: /\b(?:deitad[oa]|acamad[oa])\b/g });
@@ -488,6 +489,28 @@ function limpa(v) {
   do { p = v; v = v.replace(LIMPA_FIM, ''); } while (v !== p);
   return v.replace(/^[\s,;.:-]+/, '').replace(/^(?:e|que)\s+/i, '').trim();
 }
+
+/* Hospitais da tabela de preços com morada pública. re vai contra o texto sem acentos. */
+const HOSP = [
+  { re: 'hospital (?:de |do )?sao joao(?: do porto)?|sao joao do porto', nome: 'Hospital de São João', rua: 'Alameda Professor Hernâni Monteiro', loc: 'Porto' },
+  { re: 'hospital (?:de |do )?santo antonio(?: do porto)?', nome: 'Hospital de Santo António', rua: 'Largo do Professor Abel Salazar', loc: 'Porto' },
+  { re: 'hospital da prelada', nome: 'Hospital da Prelada', rua: 'Rua Sarmento de Beires', loc: 'Porto' },
+  { re: 'hospital (?:de )?santa maria(?: do porto)?', nome: 'Hospital de Santa Maria', rua: 'Rua de Camões, 906', loc: 'Porto' },
+  { re: 'ipo(?: do porto)?', nome: 'IPO Porto', rua: 'Rua Doutor António Bernardino de Almeida', loc: 'Porto' },
+  { re: 'maternidade (?:de )?julio dinis|centro materno infantil(?: do norte)?', nome: 'Centro Materno Infantil do Norte', rua: 'Largo da Maternidade de Júlio Dinis', loc: 'Porto' },
+  { re: '(?:hospital )?pedro hispano', nome: 'Hospital Pedro Hispano', rua: 'Rua Doutor Eduardo Torres', loc: 'Matosinhos' },
+  { re: '(?:hospital )?santos silva', nome: 'Hospital Santos Silva', rua: 'Rua Conceição Fernandes', loc: 'Vila Nova de Gaia' },
+  { re: 'hospital (?:de )?braga', nome: 'Hospital de Braga', rua: 'Sete Fontes, São Víctor', loc: 'Braga' },
+  { re: 'hospital (?:de )?(?:santa luzia|viana(?: do castelo)?)', nome: 'Hospital de Viana do Castelo', rua: 'Estrada de Santa Luzia', loc: 'Viana do Castelo' },
+  { re: 'hospital (?:de )?famalicao', nome: 'Hospital de Famalicão', rua: 'Rua Artur Cupertino de Miranda', loc: 'Vila Nova de Famalicão' },
+  { re: 'hospital (?:de )?guimaraes', nome: 'Hospital de Guimarães', rua: 'Rua dos Cutileiros', loc: 'Guimarães' },
+  { re: 'hospital (?:de )?santo tirso', nome: 'Hospital de Santo Tirso', rua: 'Rua de Dona Maria do Carmo Azevedo', loc: 'Santo Tirso' },
+  { re: 'hospital (?:do )?senhor do bonfim', nome: 'Hospital Senhor do Bonfim', rua: 'Travessa de Vila Verde', loc: 'Vila do Conde' },
+  { re: 'hospital (?:de )?esposende', nome: 'Hospital de Esposende', rua: 'Avenida Doutor Henrique Barros Lima', loc: 'Esposende' },
+];
+const achaHosp = s => HOSP.find(p => new RegExp('\\b(?:' + p.re + ')\\b').test(s));
+/* Só fica o nome do lugar: o resto da frase é conversa. */
+const cortaConversa = s => s.split(/[,.?!]|\s(?:tem|logo|que|voc[eê]|vai|ok|confirme|era|obrigad\w+)\b/i)[0];
 
 /* "Transferência para Braga" é o hospital dessa cidade; o Porto tem vários, por isso fica só o nome. */
 const CIDADES = { braga: 'Braga', barcelos: 'Barcelos', famalicao: 'Famalicão', porto: 'Porto', guimaraes: 'Guimarães', esposende: 'Esposende', viana: 'Viana do Castelo', povoa: 'Póvoa de Varzim' };
@@ -594,12 +617,12 @@ function parseOcorrencia(texto) {
     ate = h.fim;
   }
 
-  const r = { tipo, rotulo: rotuloTipo(tipo, n), local: '', ref: '', destino: '', desc: '', codu: '', sado: '', contacto: '', nome: '', hora: '', bombeiros: [], particular: false, quem: '', semNumero: false, hospital: false, prio: '', extras: {}, setor: '', meio: '', casa: false };
+  const r = { tipo, rotulo: rotuloTipo(tipo, n), local: '', ref: '', destino: '', desc: '', codu: '', sado: '', contacto: '', nome: '', hora: '', bombeiros: [], particular: false, quem: '', semNumero: false, hospital: false, prio: '', extras: {}, setor: '', meio: '', casa: false, destHosp: false };
   const ruas = [], fregs = [], refs = [], destinos = [], partes = [];
   const sobra = (ini, fim) => { if (fim > ini) partes.push({ ini, fim, s: t.slice(ini, fim), solto: 1 }); };
   const transp = tipo === 'transporte' || tipo === 'transferencia';
   sobra(0, hits.length ? hits[0].ini : t.length);
-  let lido = 0, viuDestino = false;
+  let lido = 0, viuDestino = false, hospital = null;
   hits.forEach((h, i) => {
     if (h.ini < lido) return;
     const fim = i + 1 < hits.length ? hits[i + 1].ini : t.length;
@@ -616,7 +639,7 @@ function parseOcorrencia(texto) {
       const ant = hits[i - 1], num = /^[\s,]*(\d{1,5})\b/.exec(t.slice(h.fim, fim));
       if (num && ant && ant.c.f === 'local' && !ant.c.solo && ruas.length) ruas[ruas.length - 1] += ', nº ' + num[1];
     } else if (f === 'nome') {
-      const v = t.slice(h.val, fim).split(/[,.?!]|\s(?:ela|ele|que|tem|vai|est[aá]|para|nasceu|idade|anos|mora)\b/i)[0];
+      const v = t.slice(h.val, fim).split(/[,.?!]|\s(?:ela|ele|que|tem|vai|est[aá]|para|nasceu|idade|anos|mora|consegui\w*)\b/i)[0];
       r.nome = titulo(limpa(v).split(' ').slice(0, 5).join(' '));
     } else if (f === 'coduNu') {
       if (!r.codu) r.codu = h.m[1].replace(/\D/g, '');
@@ -676,9 +699,13 @@ function parseOcorrencia(texto) {
       const v = limpa(t.slice(h.val, fim));
       if (v) refs.push(v);
     } else if (f === 'destino') {
-      const cidade = CIDADES[h.m[1]];
-      const v = cidade ? (tipo === 'transferencia' && cidade !== 'Porto' ? 'Hospital de ' + cidade : cidade) : morada(limpa(t.slice(h.val, fim)));
+      const cidade = CIDADES[h.m[1]], hp = achaHosp(n.slice(h.val, fim));
+      const v = hp ? hp.nome : cidade ? (tipo === 'transferencia' && cidade !== 'Porto' ? 'Hospital de ' + cidade : cidade) : morada(limpa(cortaConversa(t.slice(h.val, fim))));
+      if (hp) hospital = hp;
       if (v) destinos.push(v);
+      viuDestino = true;
+    } else if (f === 'hosp') {
+      hospital = achaHosp(h.m[0]);
       viuDestino = true;
     } else if (f === 'desc') {
       partes.push({ ini: h.val, fim, s: t.slice(h.val, fim) });
@@ -701,6 +728,18 @@ function parseOcorrencia(texto) {
     }
     destinos.length = 0;
     if (lar && !refs.length) refs.push(fregs[0] ? 'Lar de ' + fregs[0].replace(/[()]/g, '') : 'Lar');
+  }
+  /* Hospital conhecido: fica só o nome certo e, numa transferência a partir do nosso hospital, a morada dele nos campos. */
+  const hp = !aCasa && (hospital || HOSP.find(p => destinos.includes(p.nome)));
+  if (hp) {
+    destinos.length = 0;
+    destinos.push(hp.nome);
+    if (tipo === 'transferencia' && !fregs.length && ruas.every(v => /urgencia|pisos?|hospital de barcelos/.test(sem(v)))) {
+      ruas.length = 0;
+      ruas.push(hp.rua);
+      fregs.push(hp.loc);
+      r.destHosp = true;
+    }
   }
   /* "Rua da Igreja Arcozelo": a freguesia dita colada ao fim da rua vai para o seu campo. "Rua de Arcozelo" é nome da rua. */
   ruas.forEach((v, i) => {
@@ -815,6 +854,7 @@ function valorTransporte({ local, destino, precos, valorManual, volta, esperaH, 
 function consultasMapa(c) {
   const ref = refNua(c.ref || ''), lista = [];
   const sufixo = s => (s = s.replace(/[()]/g, '').replace(/^(?:Urgência|Pisos?)(?=,|$)/, 'Hospital de Barcelos'), foraDeBarcelos(s) || /\bbarcelos$/i.test(s) ? s + ', Portugal' : s + ', Barcelos, Portugal');
+  if (c.destHosp && c.destino) return [c.destino + ', ' + (c.freg || '') + ', Portugal'];
   /* Numa alta, a morada do doente vem no destino. */
   if (!c.local && c.destino) lista.push(sufixo(c.destino.replace(/^Casa,\s*/, '')));
   if (c.local && RUA.test(sem(c.local))) lista.push(sufixo(c.local));
@@ -908,7 +948,7 @@ function infoArea() {
   };
 }
 const semNumero = () => S.semManual !== null ? S.semManual : S.semDito;
-const cobranca = () => cobrancaDe({ particular: particular(), tipo: S.tipo, codu: S.campos.codu, semNumero: semNumero(), local: S.campos.local, destino: S.campos.destino, precos, valorManual: S.valorManual,
+const cobranca = () => cobrancaDe({ particular: particular(), tipo: S.tipo, codu: S.campos.codu, semNumero: semNumero(), local: S.campos.destHosp ? '' : S.campos.local, destino: S.campos.destino, precos, valorManual: S.valorManual,
   volta: ['Transporte para exame', 'Transporte para consulta'].includes(S.rotulo), esperaH: S.esperaH, o2: comExtras() && temExtra('o2'), o2H: S.o2H, rodas: comExtras() && temExtra('rodas'), medicalizada: S.rotulo === 'Transferência medicalizada' });
 const euros = v => v ? v + ' €' : '';
 const achaB = n => contactos.find(c => c.num === limpaNum(n)) || contactos.find(c => c.mec && c.mec === n);
@@ -932,6 +972,7 @@ function atualiza(brilhar) {
   S.semDito = p.semNumero;
   S.extrasDito = p.extras;
   S.casaDita = p.casa;
+  S.campos.destHosp = p.destHosp;
   if (S.texto.trim() && !S.inicio) S.inicio = hojeHora();
   if (!S.tipoManual) { S.tipo = p.tipo; S.rotulo = p.rotulo; }
   for (const f of CAMPOS) {
@@ -964,7 +1005,7 @@ function desenha() {
   $('linhaMeio').hidden = !(!S.tipo || COM_AREA.includes(S.tipo) || S.campos.meio);
   $('linhaExtras').hidden = $('linhaSetor').hidden = !comExtras();
   $('linhaNome').hidden = !semCodu();
-  document.querySelector('label[for="f-rua"]').textContent = moradaDestino() ? 'Destino' : 'Local';
+  document.querySelector('label[for="f-rua"]').textContent = moradaDestino() ? 'Destino' : S.campos.destHosp ? 'Morada do destino' : 'Local';
   document.querySelector('label[for="f-desc"]').textContent = semCodu() ? 'Motivo' : 'Circunstâncias';
   for (const b of $('setorChips').children) b.setAttribute('aria-pressed', String(sem(b.textContent) === sem((S.campos.setor || '').trim())));
   for (const b of $('extras').children) b.setAttribute('aria-pressed', String(temExtra(b.dataset.k)));
@@ -1141,9 +1182,10 @@ function mensagem(modo) {
   if (c.freg) linhas.push(c.freg + (c.hora ? ' · ' + c.hora : '')); else add('Hora', c.hora);
   if (semCodu()) add('Utente', c.nome);
   if (comExtras()) add('Serviço', (c.setor || '').trim());
-  add(moradaDestino() ? 'Destino' : 'Local', c.rua);
+  if (c.destHosp) add('Destino', c.destino);
+  add(moradaDestino() ? 'Destino' : c.destHosp ? 'Morada' : 'Local', c.rua);
   add('Referência', c.ref);
-  add('Destino', c.destino);
+  if (!c.destHosp) add('Destino', c.destino);
   if (textoExtras()) linhas.push(textoExtras());
   if (!semCodu()) add('Circunstâncias', c.desc); else if (S.editados.desc) add('Motivo', c.desc);
   add('Prioridade', (c.prio || '').trim().toUpperCase()); if (!semCodu()) add('CODU', c.codu);
@@ -1232,6 +1274,7 @@ function desenhaRecentes() {
 
 /* Ditado */
 const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
+let esperaTexto = 0;
 let rec = null, aOuvir = false, base = '', desvio = 0, total = 0;
 const juntar = (a, b) => (a && b) ? a.replace(/\s+$/, '') + ' ' + b.replace(/^\s+/, '') : (a || b);
 
@@ -1249,6 +1292,7 @@ function comecarMic() {
     $('texto').focus();
     return;
   }
+  if (!S.inicio) S.inicio = hojeHora();
   rec = new Rec();
   rec.lang = $('lingua').value;
   rec.continuous = true;
@@ -1266,7 +1310,6 @@ function comecarMic() {
     }
     $('texto').value = juntar(base, fala);
     S.texto = $('texto').value;
-    atualiza(true);
   };
   rec.onerror = e => {
     if (e.error === 'no-speech' || e.error === 'aborted') return;
@@ -1281,9 +1324,10 @@ function comecarMic() {
     base = $('texto').value;
     desvio = 0;
     if (aOuvir) { try { rec.start(); return; } catch {} aOuvir = false; }
-    if ($('estado').textContent === 'A ouvir…') { estadoMic('Pronto para ditar', 'Confira o cartão antes de enviar.'); if (consultasMapa(S.campos).length && !S.ponto) procuraPonto(); }
+    /* O cartão só preenche quando se para de gravar, já com a fala completa. */
+    if ($('estado').textContent === 'A ouvir…') { atualiza(true); estadoMic('Pronto para ditar', 'Confira o cartão antes de enviar.'); if (consultasMapa(S.campos).length && !S.ponto) procuraPonto(); }
   };
-  try { rec.start(); aOuvir = true; estadoMic('A ouvir…', 'Diga o tipo, o local, a referência e o número CODU.'); }
+  try { rec.start(); aOuvir = true; estadoMic('A ouvir…', 'O cartão preenche quando parar de gravar.'); }
   catch { estadoMic('Ditado indisponível', 'Toque na caixa de texto e use o microfone do teclado.'); }
 }
 
@@ -1299,7 +1343,7 @@ function novaOcorrencia() {
   $('texto').value = '';
   $('feedback').textContent = '';
   guarda.gravar('cartao.rascunho', null);
-  estadoMic('Pronto para ditar', 'Fale durante a chamada. O cartão preenche sozinho.');
+  estadoMic('Pronto para ditar', 'Fale durante a chamada. O cartão preenche quando parar de gravar.');
   atualiza(false);
 }
 
@@ -1365,8 +1409,11 @@ document.querySelector('.grelha').addEventListener('focusin', e => {
 $('texto').addEventListener('input', e => {
   if (S.exemplo) { S.exemplo = false; S.inicio = null; }
   S.texto = e.target.value;
-  if (aOuvir) { base = S.texto; desvio = total; }
-  atualiza(true);
+  if (aOuvir) { base = S.texto; desvio = total; return; }
+  /* Ao escrever ou usar o microfone do teclado, espera uma pausa antes de preencher. */
+  if (!S.inicio && S.texto.trim()) S.inicio = hojeHora();
+  clearTimeout(esperaTexto);
+  esperaTexto = setTimeout(() => atualiza(true), 1500);
 });
 $('bombeiro').addEventListener('input', () => {
   const v = $('bombeiro').value.trim(), c = /^h?\d{3}$/i.test(v) && exatoB(v);
