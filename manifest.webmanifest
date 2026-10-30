@@ -1,0 +1,17 @@
+{
+  "name": "Cartão de Ocorrência",
+  "short_name": "Cartão",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#0F151B",
+  "theme_color": "#C4161C",
+  "lang": "pt",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

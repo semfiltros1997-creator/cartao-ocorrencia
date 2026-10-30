@@ -1,0 +1,1343 @@
+<!doctype html>
+<html lang="pt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#C4161C">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<style>:root{padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Cartão de Ocorrência</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: consola de chamada à esquerda, ficha de papel pautada à direita; no telemóvel a ficha fica por baixo do ditado. */
+:root {
+  --bg: #E6EAEE; --panel: #F4F6F8; --paper: #FFFFFF; --ink: #15212C; --muted: #566573; --rule: #C3CDD6;
+  --alarm: #C4161C; --on-strong: #FFFFFF; --send: #0B7A4B; --focus: #1B5FAA; --warn-bg: #FFF1CC; --warn-ink: #6B4A00;
+  --t-incendio: #C4161C; --t-acidente: #A85A00; --t-emergencia: #1B5FAA; --t-transferencia: #0B6E74; --t-transporte: #3C6E2F; --t-outro: #4B5966;
+  --display: "Barlow Condensed", "Arial Narrow", Arial, sans-serif;
+  --body: "Barlow", "Segoe UI", Roboto, Arial, sans-serif;
+  --mono: "IBM Plex Mono", Consolas, "Courier New", monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0F151B; --panel: #161F27; --paper: #1B252E; --ink: #E7ECF1; --muted: #9DACB9; --rule: #35434F;
+  --alarm: #E5383B; --on-strong: #FFFFFF; --send: #0F8A56; --focus: #7DB6F5; --warn-bg: #3D3010; --warn-ink: #FFD980;
+  --t-incendio: #D62B30; --t-acidente: #B86A10; --t-emergencia: #2A6FBD; --t-transferencia: #137F86; --t-transporte: #4A7F3A; --t-outro: #5C6B78;
+  color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --bg: #0F151B; --panel: #161F27; --paper: #1B252E; --ink: #E7ECF1; --muted: #9DACB9; --rule: #35434F;
+  --alarm: #E5383B; --on-strong: #FFFFFF; --send: #0F8A56; --focus: #7DB6F5; --warn-bg: #3D3010; --warn-ink: #FFD980;
+  --t-incendio: #D62B30; --t-acidente: #B86A10; --t-emergencia: #2A6FBD; --t-transferencia: #137F86; --t-transporte: #4A7F3A; --t-outro: #5C6B78;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 400 16px/1.4 var(--body); }
+.fechado .wrap > :not(#cofre) { display: none !important; }
+#cofre { max-width: 360px; margin: 12vh auto 0; width: 100%; background: var(--panel); border: 1px solid var(--rule); border-radius: 8px; padding: 18px; display: grid; gap: 10px; }
+#cofre h1 { font: 700 24px/1.2 var(--display); margin: 0; }
+#cofre input { width: 100%; font: 500 18px/1.3 var(--body); padding: 10px; border: 1px solid var(--rule); border-radius: 6px; background: transparent; color: var(--ink); }
+#cofreMsg { min-height: 20px; }
+.wrap { max-width: 1140px; margin: 0 auto; padding-block: 14px 32px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 14px; }
+header { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
+h1 { font: 700 26px/1 var(--display); letter-spacing: .01em; margin: 0; }
+.relogio { font: 600 18px/1 var(--mono); font-variant-numeric: tabular-nums; color: var(--muted); }
+.esp { flex: 1; }
+button, .botao { font: 600 16px/1 var(--body); border-radius: 6px; border: 1.5px solid var(--rule); background: var(--paper); color: var(--ink); min-height: 44px; padding: 0 14px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; }
+button:hover, .botao:hover { border-color: var(--ink); }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+button:disabled { opacity: .5; cursor: not-allowed; }
+.aviso { background: var(--warn-bg); color: var(--warn-ink); border-radius: 6px; padding: 10px 12px; font-weight: 500; }
+.grelha { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 14px; align-items: start; }
+@media (max-width: 860px) { .grelha { grid-template-columns: minmax(0, 1fr); } }
+
+.consola { background: var(--panel); border: 1px solid var(--rule); border-radius: 8px; padding: 14px; display: grid; gap: 12px; min-width: 0; }
+.mic-linha { display: flex; align-items: center; gap: 14px; }
+#mic { width: 76px; height: 76px; border-radius: 50%; padding: 0; flex: none; background: var(--alarm); border-color: var(--alarm); color: var(--on-strong); }
+#mic svg { width: 34px; height: 34px; }
+#mic.ativo { animation: pulso 1.3s ease-out infinite; }
+@keyframes pulso { 0% { box-shadow: 0 0 0 0 var(--alarm); } 100% { box-shadow: 0 0 0 16px transparent; } }
+@media (prefers-reduced-motion: reduce) { #mic.ativo { animation: none; box-shadow: 0 0 0 4px var(--alarm); } .brilho { animation: none !important; } }
+.mic-texto { min-width: 0; }
+#estado { font: 700 22px/1.1 var(--display); }
+#dica { color: var(--muted); font-size: 14px; }
+label.rotulo, .rotulo { font: 600 13px/1 var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); display: block; }
+#texto { width: 100%; min-height: 190px; resize: vertical; border: 1.5px solid var(--rule); border-radius: 6px; background: var(--paper); color: var(--ink); font: 400 17px/1.45 var(--body); padding: 10px 12px; margin-top: 6px; }
+@media (max-width: 860px) { #texto { min-height: 110px; } }
+.sotaque { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 14px; flex-wrap: wrap; }
+select { font: 500 15px/1 var(--body); min-height: 36px; border: 1.5px solid var(--rule); border-radius: 6px; background: var(--paper); color: var(--ink); padding: 0 8px; }
+
+.ficha { background: var(--paper); border: 2px solid var(--ink); border-radius: 4px; min-width: 0; overflow: hidden; }
+.faixa { --cor: var(--t-outro); background: var(--cor); color: var(--on-strong); padding: 12px 14px; display: grid; gap: 10px; }
+.faixa[data-tipo="incendio"] { --cor: var(--t-incendio); } .faixa[data-tipo="acidente"] { --cor: var(--t-acidente); }
+.faixa[data-tipo="emergencia"] { --cor: var(--t-emergencia); } .faixa[data-tipo="transferencia"] { --cor: var(--t-transferencia); }
+.faixa[data-tipo="transporte"] { --cor: var(--t-transporte); }
+#rotulo { font: 700 32px/1 var(--display); letter-spacing: .02em; text-transform: uppercase; text-wrap: balance; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips button { min-height: 36px; padding: 0 10px; font: 600 14px/1 var(--body); background: transparent; color: var(--on-strong); border-color: var(--on-strong); }
+.chips button[aria-pressed="true"] { background: var(--on-strong); color: var(--cor); }
+.linhas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.campo { padding: 8px 12px 6px; border-top: 1px solid var(--rule); min-width: 0; }
+.campo.largo { grid-column: 1 / -1; }
+.numeros { grid-column: 1 / -1; display: flex; flex-wrap: wrap; min-width: 0; }
+.numeros .campo { flex: 1 1 110px; }
+.numeros .campo + .campo { border-left: 1px solid var(--rule); }
+.lista-b { display: grid; gap: 6px; }
+.lista-b:not(:empty) { padding-bottom: 8px; }
+.lista-b button { justify-content: flex-start; text-align: left; line-height: 1.25; padding: 8px 10px; font-weight: 500; font-size: 15px; height: auto; }
+.escolhido { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; border: 1px solid var(--rule); border-radius: 6px; padding: 6px 6px 6px 10px; }
+.escolhido span { overflow-wrap: anywhere; font-size: 15px; }
+.escolhido small { display: block; color: var(--muted); font-size: 13px; }
+.por-b { grid-column: 1 / -1; display: grid; gap: 8px; }
+.por-b .botao { background: var(--send); border-color: var(--send); color: var(--on-strong); padding-block: 10px; height: auto; line-height: 1.2; text-align: center; }
+.contactos { background: var(--panel); border: 1px solid var(--rule); border-radius: 8px; padding: 12px 14px; }
+.contactos summary { font: 700 20px/1.2 var(--display); color: var(--ink); }
+.contactos-corpo { display: grid; gap: 12px; padding-top: 12px; }
+.form-b { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; align-items: end; }
+.prio-chips { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.prio-chips button { padding: 0; min-height: 40px; font: 600 16px/1 var(--mono); }
+[data-p="P1"] { --cor-p: var(--t-incendio); --txt-p: var(--on-strong); }
+[data-p="P2"] { --cor-p: var(--t-acidente); --txt-p: var(--on-strong); }
+[data-p="P3"] { --cor-p: #F2C200; --txt-p: #15212C; }
+[data-p="P4"] { --cor-p: var(--t-transporte); --txt-p: var(--on-strong); }
+[data-p="P5"] { --cor-p: var(--t-emergencia); --txt-p: var(--on-strong); }
+.prio-chips button[aria-pressed="true"] { background: var(--cor-p); color: var(--txt-p); border-color: var(--cor-p); }
+#areaCartao, .resposta { grid-column: 1 / -1; padding: 8px 12px; font-weight: 600; font-size: 15px; border-top: 1px solid var(--rule); background: var(--panel); overflow-wrap: anywhere; }
+#areaCartao[data-nossa="sim"], .resposta[data-nossa="sim"] { color: var(--send); }
+#areaCartao[data-nossa="nao"], .resposta[data-nossa="nao"] { background: var(--warn-bg); color: var(--warn-ink); }
+.resposta { border: 1px solid var(--rule); border-radius: 6px; padding: 6px 10px; }
+#respostaArea { display: grid; gap: 6px; padding-top: 6px; }
+#perguntaArea { width: 100%; border: 1.5px solid var(--rule); border-radius: 6px; background: var(--paper); color: var(--ink); font: 500 17px/1.3 var(--body); padding: 9px 10px; margin-top: 6px; }
+.extras { display: flex; flex-wrap: wrap; gap: 6px; padding-bottom: 4px; }
+.extras button { min-height: 40px; font-size: 15px; }
+.extras button[aria-pressed="true"], #btnSemNumero[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+#btnSemNumero { min-height: 36px; font-size: 14px; }
+#painelParticular { display: grid; gap: 8px; padding-bottom: 8px; }
+#estadoCobranca { border-radius: 6px; padding: 8px 10px; font-weight: 600; font-size: 15px; background: var(--panel); }
+#estadoCobranca[data-estado="cobrar"] { background: var(--warn-bg); color: var(--warn-ink); }
+#estadoCobranca[data-estado="urgente"] { color: var(--send); }
+.valor-linha { display: flex; align-items: center; gap: 8px; }
+.valor-linha input { max-width: 120px; }
+.form-b input, #importarPrecos { width: 100%; border: 1.5px solid var(--rule); border-radius: 6px; background: var(--paper); color: var(--ink); font: 400 16px/1.3 var(--body); padding: 9px 10px; margin-top: 4px; }
+#importar, #importarPrecos { min-height: 90px; resize: vertical; }
+.acoes-b { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 8px; }
+.contacto { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; align-items: center; padding: 6px 0; border-top: 1px solid var(--rule); }
+.contacto span { overflow-wrap: anywhere; font-size: 15px; }
+.topo-campo { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 20px; }
+.voltar { min-height: 26px; padding: 0 6px; font: 500 12px/1 var(--body); color: var(--muted); border-color: transparent; background: transparent; text-decoration: underline; }
+.campo input, .campo textarea { width: 100%; border: 0; background: transparent; color: var(--ink); font: 500 18px/1.3 var(--body); padding: 3px 0 5px; resize: none; display: block; }
+.campo input.num { font: 600 21px/1.2 var(--mono); font-variant-numeric: tabular-nums; }
+.campo input.num::placeholder { font: 400 12px/1.2 var(--body); }
+.campo input::placeholder, .campo textarea::placeholder { color: var(--muted); opacity: .7; font-weight: 400; }
+.campo input:focus, .campo textarea:focus { outline: none; }
+.campo:focus-within { background: color-mix(in srgb, var(--focus) 10%, transparent); }
+.brilho { animation: brilho 1.1s ease-out; }
+@keyframes brilho { 0% { background: color-mix(in srgb, var(--send) 26%, transparent); } 100% { background: transparent; } }
+
+.mapa { padding: 10px 12px; border-top: 1px solid var(--rule); display: grid; gap: 8px; min-width: 0; }
+.mapa-acoes { display: flex; flex-wrap: wrap; gap: 8px; }
+#pontoEstado { font-size: 14px; color: var(--muted); overflow-wrap: anywhere; }
+#opcoes { display: grid; gap: 6px; }
+#opcoes button { justify-content: flex-start; text-align: left; line-height: 1.25; padding: 8px 10px; font-weight: 500; font-size: 14px; height: auto; }
+#opcoes button[aria-pressed="true"] { border-color: var(--send); box-shadow: inset 0 0 0 1px var(--send); }
+.envio { padding: 12px; border-top: 2px solid var(--ink); display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; background: var(--panel); }
+.envio .principal { grid-column: 1 / -1; background: var(--send); border-color: var(--send); color: var(--on-strong); min-height: 54px; font-size: 18px; }
+.envio .botao[aria-disabled="true"] { opacity: .5; pointer-events: none; }
+#feedback { padding: 0 12px 10px; background: var(--panel); font-size: 14px; font-weight: 500; }
+details { padding: 0 12px 12px; background: var(--panel); }
+summary { cursor: pointer; color: var(--muted); font-size: 14px; }
+pre { white-space: pre-wrap; overflow-wrap: anywhere; font: 500 14px/1.45 var(--mono); margin: 8px 0 0; }
+
+.recentes { background: var(--panel); border: 1px solid var(--rule); border-radius: 8px; padding: 12px 14px; display: grid; gap: 8px; }
+.recentes h2 { font: 700 20px/1 var(--display); margin: 0; }
+.recente { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; }
+.recente span.h { font: 600 15px/1 var(--mono); font-variant-numeric: tabular-nums; }
+.recente span.d { overflow-wrap: anywhere; font-size: 15px; }
+footer { color: var(--muted); font-size: 13px; max-width: 72ch; }
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <form id="cofre" hidden>
+    <h1>Cartão de Ocorrência</h1>
+    <label class="rotulo" for="cofreConta">Conta</label>
+    <input id="cofreConta" autocomplete="username" autocapitalize="none" required>
+    <label class="rotulo" for="cofreSenha">Senha</label>
+    <input id="cofreSenha" type="password" autocomplete="current-password" required>
+    <button type="submit">Entrar</button>
+    <div id="cofreMsg" aria-live="polite"></div>
+  </form>
+  <header>
+    <h1>Cartão de Ocorrência</h1>
+    <span class="relogio" id="relogio" aria-label="Hora atual">--:--:--</span>
+    <span class="esp"></span>
+    <button id="nova" type="button">Nova ocorrência</button>
+  </header>
+  <div class="aviso" id="avisoExemplo" hidden>Isto é um exemplo. Toque em Nova ocorrência para começar.</div>
+
+  <div class="grelha">
+    <section class="consola" aria-label="Ditado">
+      <div class="mic-linha">
+        <button id="mic" type="button" aria-label="Começar a ditar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0"></path><path d="M12 18v3"></path></svg>
+        </button>
+        <div class="mic-texto">
+          <div id="estado" aria-live="polite">Pronto para ditar</div>
+          <div id="dica">Fale durante a chamada. O cartão preenche sozinho.</div>
+        </div>
+      </div>
+      <div>
+        <label class="rotulo" for="texto">O que foi dito</label>
+        <textarea id="texto" placeholder="Ex.: transferência do Hospital de Barcelos para o Hospital de Braga, CODU 123456"></textarea>
+      </div>
+      <div class="sotaque">
+        <label for="lingua">Reconhecer voz em</label>
+        <select id="lingua"><option value="pt-PT">Português de Portugal</option><option value="pt-BR">Português do Brasil</option></select>
+      </div>
+      <div>
+        <label class="rotulo" for="perguntaArea">É de vocês?</label>
+        <input id="perguntaArea" autocomplete="off" placeholder="Escreva a freguesia">
+        <div id="respostaArea" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <section class="ficha" aria-label="Cartão">
+      <div class="faixa" id="faixa" data-tipo="outro">
+        <div id="rotulo">Tipo de serviço</div>
+        <div class="chips" id="chips" role="group" aria-label="Tipo de serviço"></div>
+      </div>
+      <div class="linhas">
+        <div class="numeros">
+          <div class="campo" data-f="hora"><div class="topo-campo"><label class="rotulo" for="f-hora">Hora</label></div><input class="num" id="f-hora" inputmode="numeric" autocomplete="off"></div>
+        </div>
+        <div class="campo largo" data-f="local"><div class="topo-campo"><label class="rotulo" for="f-local">Local</label></div><textarea id="f-local" rows="2" placeholder="Rua, lugar, freguesia"></textarea></div>
+        <div id="areaCartao" aria-live="polite" hidden></div>
+        <div class="campo largo" data-f="ref"><div class="topo-campo"><label class="rotulo" for="f-ref">Ponto de referência</label></div><input id="f-ref" autocomplete="off" placeholder="Perto de, ao lado de"></div>
+        <div class="campo largo" data-f="destino" id="linhaDestino" hidden><div class="topo-campo"><label class="rotulo" for="f-destino">Destino</label></div><input id="f-destino" autocomplete="off"></div>
+        <div class="campo largo" data-f="setor" id="linhaSetor" hidden>
+          <div class="topo-campo"><label class="rotulo" for="f-setor">Serviço do hospital</label></div>
+          <input id="f-setor" autocomplete="off">
+          <div class="extras" id="setorChips" role="group" aria-label="Serviço do hospital"></div>
+        </div>
+        <div class="campo largo" id="linhaExtras" hidden>
+          <div class="extras" id="extras" role="group" aria-label="Condições do transporte"></div>
+        </div>
+        <div class="campo largo" data-f="desc" id="linhaDesc"><div class="topo-campo"><label class="rotulo" for="f-desc">Circunstâncias</label></div><textarea id="f-desc" rows="2"></textarea></div>
+        <div class="numeros">
+          <div class="campo" data-f="codu" id="linhaCodu"><div class="topo-campo"><label class="rotulo" for="f-codu">Nº CODU</label></div><input class="num" id="f-codu" inputmode="numeric" autocomplete="off"></div>
+          <div class="campo" data-f="meio" id="linhaMeio"><div class="topo-campo"><label class="rotulo" for="f-meio">Meio</label></div><input class="num" id="f-meio" autocomplete="off"></div>
+          <div class="campo" data-f="contacto"><div class="topo-campo"><label class="rotulo" for="f-contacto">Contactante</label></div><input class="num" id="f-contacto" list="contactantes" autocomplete="off"><datalist id="contactantes"><option value="112"></option><option value="117"></option><option value="PSP"></option><option value="GNR"></option><option value="Urgência"></option><option value="Piso 1"></option><option value="Piso 3"></option><option value="Piso 5"></option><option value="Consulta externa"></option></datalist></div>
+          <div class="campo" data-f="prio" id="linhaPrio"><div class="topo-campo"><label class="rotulo" for="f-prio">Prioridade</label></div><input class="num" id="f-prio" autocomplete="off"></div>
+        </div>
+        <div class="campo largo" id="prioBloco">
+          <div class="prio-chips" id="prioChips" role="group" aria-label="Prioridade da triagem"></div>
+        </div>
+        <div class="campo largo" id="pedido" hidden>
+          <div id="painelParticular">
+            <div id="estadoCobranca" aria-live="polite" hidden></div>
+            <div><button id="btnSemNumero" type="button" aria-pressed="false" hidden>112 não atribuiu número</button></div>
+            <div id="linhaHoras" class="valor-linha" hidden>
+              <div><label class="rotulo" for="f-espera">Espera (horas)</label><input class="num" id="f-espera" inputmode="decimal" autocomplete="off"></div>
+              <div><label class="rotulo" for="f-o2h">O₂ (horas)</label><input class="num" id="f-o2h" inputmode="decimal" autocomplete="off"></div>
+            </div>
+            <div id="linhaValor" hidden>
+              <div class="topo-campo"><label class="rotulo" for="f-valor">Valor a cobrar</label></div>
+              <div class="valor-linha"><input class="num" id="f-valor" inputmode="decimal" autocomplete="off"><span>€</span><button class="voltar" id="valorTabela" type="button" hidden>Voltar à tabela</button></div>
+            </div>
+          </div>
+        </div>
+        <div class="campo largo" id="equipa">
+          <div class="topo-campo"><label class="rotulo" for="bombeiro">Operacionais</label></div>
+          <input id="bombeiro" autocomplete="off" placeholder="Nº ou nome do operacional" hidden>
+          <div class="lista-b" id="sugestoes"></div>
+          <div class="lista-b" id="escolhidos"></div>
+          <button id="maisBombeiro" type="button" hidden>+ Adicionar operacional</button>
+        </div>
+      </div>
+      <div class="mapa">
+        <div class="mapa-acoes">
+          <a class="botao" id="verMapa" href="https://www.google.com/maps" target="_blank" rel="noopener">Ver no mapa</a>
+          <button id="procurar" type="button">Procurar ponto exato</button>
+        </div>
+        <div id="pontoEstado" aria-live="polite">Diga o local para criar o link do mapa.</div>
+        <div id="opcoes"></div>
+      </div>
+      <div class="envio">
+        <div class="por-b" id="porBombeiro" hidden></div>
+        <a class="botao principal" id="wa" href="https://wa.me/" target="_blank" rel="noopener">Enviar no WhatsApp</a>
+        <a class="botao" id="sms" href="sms:">SMS</a>
+        <button id="copiar" type="button">Copiar</button>
+        <button id="partilhar" type="button" hidden>Partilhar</button>
+      </div>
+      <div id="feedback" aria-live="polite"></div>
+      <details><summary>Ver a mensagem</summary><pre id="previa"></pre></details>
+    </section>
+  </div>
+
+  <section class="recentes" id="recentes" hidden aria-label="Cartões recentes">
+    <h2>Cartões das últimas 24 horas</h2>
+    <div id="listaRecentes"></div>
+  </section>
+
+  <details class="contactos" id="precos">
+    <summary>Preços de transporte (<span id="nPrecos">0</span>)</summary>
+    <div class="contactos-corpo">
+      <form class="form-b" id="formPreco">
+        <div><label class="rotulo" for="p-nome">Local</label><input id="p-nome" autocomplete="off" required></div>
+        <div><label class="rotulo" for="p-valor">Valor em euros</label><input id="p-valor" inputmode="decimal" autocomplete="off" required></div>
+        <button type="submit">Guardar</button>
+      </form>
+      <div>
+        <label class="rotulo" for="importarPrecos">Colar preços</label>
+        <textarea id="importarPrecos" placeholder="Barqueiros; 30"></textarea>
+        <div style="color: var(--muted); font-size: 14px">Um local por linha: nome e valor, separados por ponto e vírgula. Também pode colar as duas colunas do Excel.</div>
+        <div class="acoes-b"><button id="btnImportarPrecos" type="button">Importar preços</button></div>
+      </div>
+      <div id="msgPrecos" aria-live="polite"></div>
+      <div id="listaPrecos"></div>
+    </div>
+  </details>
+
+  <div id="linhaBloquear" hidden><button id="btnBloquear" type="button">Sair</button></div>
+  <footer>Os cartões ficam guardados só neste aparelho e são apagados ao fim de 24 horas. Os contactos e os preços só abrem com uma conta. O ditado usa o serviço de voz do navegador e a procura de pontos usa o OpenStreetMap. Confirme sempre o ponto antes de enviar.</footer>
+</div>
+
+<script>
+/*PARSER-START*/
+const sem = s => s.replace(/[^\x00-\x7f]/g, c => { const b = c.normalize('NFD').replace(/[̀-ͯ]/g, ''); return b.length === 1 ? b : c; }).toLowerCase();
+
+/* Áreas de intervenção: B = Barcelos, C = Barcelinhos, V = Viatodos. Nome;área;km (TS na própria cidade). */
+const TABELA = 'Abade de Neiva;B;14|Aborim;B;22|Adães;C;18|Aguiar;B;30|Airó;C;18|Aldreu;B;38|Alheira;B;28|Alvelos;C;12|Alvito (São Martinho);B;30|Alvito (São Pedro);B;30|Arcozelo;B;10|Areias;B;22|Areias de Vilar;C;20|Balugães;B;30|Barcelinhos;C;10|Barcelos;B;TS|Barqueiros;C;26|Bastuço (Santo Estevão);C;32|Bastuço (São João);C;30|Cambeses;V;30|Campo;B;18|Carapeços;B;18|Carreira;V;30|Carvalhal;C;10|Carvalhas;V;26|Chavão;V;40|Chorente;V;24|Cossourado;B;26|Courel;C;26|Couto;B;24|Creixomil;C;16|Cristelo;C;24|Durrães;B;35|Encourados;C;22|Faria;C;18|Feitos;B;20|Fonte Coberta;V;22|Fornelos;C;16|Fragoso;B;42|Galegos (Santa Maria);B;14|Galegos (São Martinho);B;16|Gamil;C;12|Gilmonde;C;12|Goios;C;18|Grimancelos;V;30|Gueral;C;20|Igreja Nova;B;30|Lama;B;22|Lijó;B;14|Macieira de Rates;V;26|Manhente;B;14|Mariz;C;14|Martim;C;26|Midões;C;16|Milhazes;C;16|Minhotães;V;30|Monte de Fralães;V;26|Moure;C;24|Negreiros;V;30|Oliveira;B;24|Palme;B;34|Panque;B;30|Paradela;C;26|Pedra Furada;C;18|Pereira;C;14|Perelhal;C;18|Pousa;C;26|Quintiães;B;28|Remelhe;C;14|Rio Covo (Santa Eugénia);C;16|Rio Covo (Santa Eulália);V;18|Roriz;B;20|Sequeade;C;26|Silva;B;14|Silveiros;V;24|Tamel (Santa Leocádia);B;20|Tamel (São Pedro Fins);B;20|Tamel (São Veríssimo);B;14|Tregosa;B;42|Ucha;B;26|Várzea;C;16|Viatodos;V;28|Vila Boa;B;10|Vila Cova;C;22|Vila Frescaínha (São Martinho);C;10|Vila Frescaínha (São Pedro);C;10|Vila Seca;C;18|Vilar de Figos;C;22|Vilar do Monte;B;16';
+const FREGS = TABELA.split('|').map(l => { const [nome, area, km] = l.split(';'); return { nome, area, km, base: nome.split(' (')[0] }; });
+const CORPOS = { B: 'Barcelos', C: 'Barcelinhos', V: 'Viatodos' };
+const NOSSA = 'B';
+const FORA = ['Braga','Esposende','Vila Nova de Famalicão','Famalicão','Póvoa de Varzim','Viana do Castelo','Ponte de Lima','Vila Verde','Porto','Guimarães','Vila do Conde','Trofa'];
+
+/* Tudo o que se pode ouvir para cada freguesia, incluindo erros frequentes do reconhecimento de voz. */
+const FALAS = [];
+{
+  const poe = (fala, nome, itens) => { if (!FALAS.some(f => f.fala === fala)) FALAS.push({ fala, nome, itens }); };
+  for (const e of FREGS) {
+    const fala = sem(e.nome).replace(/[()]/g, '');
+    poe(fala, e.nome, [e]);
+    poe(fala.replace('sao pedro fins', 'sao pedro'), e.nome, [e]);
+    poe(fala.replace('frescainha', 'frescanha'), e.nome, [e]);
+  }
+  for (const base of new Set(FREGS.map(e => e.base))) poe(sem(base), base, FREGS.filter(e => e.base === base));
+  const alias = { 'via todos': 'Viatodos', 'vila frescanha': 'Vila Frescaínha', 'frescanha': 'Vila Frescaínha', 'arcozelos': 'Arcozelo', 'lira': 'Lijó' };
+  for (const [fala, base] of Object.entries(alias)) poe(fala, base, FREGS.filter(e => e.base === base));
+  FALAS.sort((a, b) => b.fala.length - a.fala.length);
+}
+const LUGARES = [...new Set(FREGS.map(e => e.base))].concat(FORA);
+const LUGAR_ALT = FALAS.map(f => f.fala).concat(FORA.map(sem)).sort((a, b) => b.length - a.length).join('|');
+
+/* Nomes que também são apelidos ou palavras comuns: só contam como freguesia se forem ditos como lugar. */
+const VAGOS = new Set(['silva', 'pereira', 'oliveira', 'lama', 'martim', 'moure', 'campo', 'couto', 'carreira', 'palme', 'areias', 'faria', 'feitos', 'fragoso', 'mariz', 'lira']);
+function areaDe(txt) {
+  const n = sem(txt || '').replace(/[()]/g, ''), achados = [];
+  for (const f of FALAS) {
+    const re = new RegExp('\\b' + f.fala + '\\b', 'g');
+    let m;
+    while ((m = re.exec(n))) {
+      const fim = m.index + f.fala.length;
+      if (achados.some(a => m.index < a.fim && a.ini < fim)) continue;
+      if (VAGOS.has(f.fala) && !/(?:^|,\s*|\b(?:em|n[oa])\s)$/.test(n.slice(0, m.index))) continue;
+      /* "Campo 5 de Outubro" ou "Campo da Feira" são moradas, não a freguesia de Campo. */
+      if (VAGOS.has(f.fala) && /^,?\s*(?:\d|d[aeo]s?\b)/.test(n.slice(fim))) continue;
+      achados.push({ ini: m.index, fim, f });
+    }
+  }
+  if (!achados.length) return null;
+  achados.sort((a, b) => b.ini - a.ini);
+  return (achados.find(a => a.f.fala !== 'barcelos') || achados[0]).f;
+}
+
+const TIPOS = { incendio: 'Incêndio', acidente: 'Acidente', emergencia: 'Emergência médica', transferencia: 'Transferência', transporte: 'Transporte', outro: 'Outro serviço' };
+
+function detetaTipo(n) {
+  const fortes = [
+    ['transferencia', /\btransferencias?\b/],
+    ['transporte', /\btransportes?\b|\bhemodialise\b|\bconsulta\b|\bexames?\b|\bdomicilio\b|\bpara casa\b|\balta medica\b|\baltas?\s+d[ao]\b|\b(?:vai de|teve|de) alta\b|\bcadaver(?:es)?\b|\bobito\b/],
+    ['incendio', /\bincendios?\b|\bfogo\b|\bchamas\b|\ba arder\b/],
+    ['acidente', /\bacidentes?\b|\bcolisao\b|\bdespist\w+\b|\bcapotamento\b|\batropelamento\b/],
+    ['outro', /\binundac\w+\b|\bcheia\b|\bqueda de arvore\b|\babertura de porta\b|\bsalvamento\b|\bdesencarceramento\b|\blimpeza de via\b|\babastecimento de agua\b|\bfuga de gas\b/],
+  ];
+  let melhor = null, pos = Infinity;
+  for (const [id, re] of fortes) { const m = re.exec(n); if (m && m.index < pos) { pos = m.index; melhor = id; } }
+  if (melhor) return melhor;
+  if (/\bemergencias?\b|\binem\b|\b112\b|\bambulancia\b|\b[ck]od[uo]\b|\burgencia\b|\bqueda\b|\bcaiu\b|\bdor(?:es)?\b|\binconsciente\b|\bpcr\b|\bavc\b|\bconvuls\w+\b|\bhemorragia\b|\bmal estar\b|\bfalta de ar\b|\bnao respira\b|\bdesmaiou\b|\bdoente\b|\btce\b|\bhiperglicemia\b|\bhipoglicemia\b|\b[mf]\s?\d{1,3}\b/.test(n)) return 'emergencia';
+  return null;
+}
+
+function rotuloTipo(id, n) {
+  if (id === 'incendio') {
+    if (/\bmato\b|\bfloresta\w*\b|\bmata\b|\bmonte\b/.test(n)) return 'Incêndio florestal';
+    if (/\bhabitacao\b|\bcasa\b|\bapartamento\b|\bpredio\b|\bedificio\b|\burbano\b|\bcozinha\b|\bchamine\b/.test(n)) return 'Incêndio urbano';
+    if (/\bcarro\b|\bviatura\b|\bveiculo\b|\bautomovel\b|\bcamiao\b|\bmota\b/.test(n)) return 'Incêndio em veículo';
+    if (/\bfabrica\b|\barmazem\b|\bempresa\b|\bindustrial\b/.test(n)) return 'Incêndio industrial';
+  }
+  if (id === 'acidente' && /\bviacao\b|\bcolisao\b|\bdespist\w+\b|\bcapotamento\b|\batropelamento\b|\bcarro\b|\bmota\b|\bligeiro\b|\bpesado\b/.test(n)) return 'Acidente de viação';
+  if (id === 'transferencia') {
+    if (/\bmedicalizad\w+\b/.test(n)) return 'Transferência medicalizada';
+    if (/\burgencia\b/.test(n)) return 'Transferência da urgência';
+    if (/\bpisos?\b/.test(n)) return 'Transferência dos pisos';
+  }
+  if (id === 'transporte') {
+    if (/\bcadaver(?:es)?\b|\bobito\b/.test(n)) return 'Transporte de cadáver';
+    if (/\bexames?\b/.test(n)) return 'Transporte para exame';
+    if (/\bconsultas?\b/.test(n)) return 'Transporte para consulta';
+    if (/\baltas?\b.*\burgencia\b/.test(n)) return 'Alta da urgência';
+    if (/\baltas?\b.*\bpisos?\b/.test(n)) return 'Alta dos pisos';
+    if (/\bdomicilio\b|\bpara casa\b|\balta medica\b|\baltas?\s+d[ao]\b|\b(?:vai de|teve|de) alta\b/.test(n)) return 'Alta médica / domicílio';
+  }
+  return id ? TIPOS[id] : '';
+}
+
+function cues(tipo) {
+  const transp = tipo === 'transporte' || tipo === 'transferencia';
+  const naoApos = /\b(?:d[oa]|de)\s$/;
+  const lista = [
+    /* Conversa da chamada: marca o fim do que vinha antes e nunca entra no cartão. */
+    { f: 'ruido', drop: 1, re: /\b(?:ok|ta (?:bem|bom|ok)|esta (?:bem|bom|ok)|sim|certo|pronto|obrigad[oa]|boa tarde|boa noite|bom dia|temos disponibilidade|nao temos disponibilidade|qual (?:e )?a morada|(?:e )?de voces|no local|(?:a )?autoridade)\b/g },
+    /* Como no cartão em papel: "Lijó 14:31 ...", com a freguesia logo no início e sem "em". */
+    { f: 'local', solo: 1, canon: 1, re: new RegExp('^(?:emergencias?(?:\\s+medicas?)?[\\s,:-]+)?(' + LUGAR_ALT + ')\\b(?![\\s,]*\\d{1,2}(?![\\d:h]))', 'g') },
+    { f: 'sexo', re: /\b([mf])\s?(\d{1,3})\b/g },
+    { f: 'meio', drop: 1, re: /\b(?:vai|vao|sai|segue)\s+(?:[oa]\s+)?(barcelos|barcelinhos|viatodos)[\s,]*(\d{1,2}|um|dois|tres|quatro|cinco|seis|sete|oito|nove)\b/g },
+    { f: 'local', solo: 1, canon: 1, re: new RegExp('\\b(?:emergencias?(?:\\s+medicas?)?|acidentes?|incendios?|ocorrencias?|servicos?)\\s+(?:para|em|n[oa])\\s+(' + LUGAR_ALT + ')\\b', 'g') },
+    { f: 'codu', drop: 1, re: /\b(?:numero\s+(?:d[oea]\s+)?)?(?:cod[uo]s?|kod[uo]s?|cody|codigo|fichas?)\b[\s:.,-]*(?:e\s+)?(?:o\s+)?(?:numero\s+|n\.?\s+)?/g },
+    { f: 'sado', drop: 1, re: /\b(?:(?:numero\s+(?:do\s+|de\s+)?)?sad[ou]s?|numero do comando)\b[\s:.,-]*(?:e\s+)?(?:o\s+)?(?:numero\s+|n\.?\s+)?/g },
+    { f: 'bombeiro', drop: 1, re: /\bbombeiros?\b/g },
+    { f: 'prio', drop: 1, re: /\bp\s?([1-5])\b/g },
+    { f: 'prio', drop: 1, not: /\b(?:n[oa]|d[oa]|ao|o|a)\s$/, re: /\bpe\s+([1-5])\b|\b(?:p|pe)\s+(um|dois|tres|quatro|cinco)\b(?!\s+pouco)/g },
+    { f: 'hospital', drop: 1, re: /\b(?:a\s+)?pedido d[oe]\s+hospital\b|\bhospital pediu\b/g },
+    { f: 'pedido', drop: 1, re:/\b(?:(?:chamada|pedido|servico)\s+)?particular\b|\b(?:ligou|liga|chamou)\s+(?:uma?\s+|[oa]\s+|d[aeo]\s+)?(popular|familiar|escola|mercado|supermercado)\b|\b(popular|familiar)\b/g },
+    { f: 'decisao', drop: 1, re: /\b(?:(?:o\s+)?(?:112|cod[uo]|kod[uo])\s+)?(?:nao atribui\w*(?:\s+numero)?|sem (?:numero(?:\s+codu)?|codu)|nao (?:e\s+)?urgente|nao justific\w+)\b/g },
+    { f: 'contacto', solo: 1, re: /\b(?:contactante|contacto|contato)\s+(?:e\s+)?(?:[oa]\s+|d[ao]s?\s+)?(psp|gnr|urgencia|pisos?(?:\s+\d)?|consulta externa|hospital)\b/g },
+    { f: 'contacto', drop: 1, re: /\b(?:numero de (?:telefone|telemovel|contacto|contato)|contactante|contacto|contato|telefone|telemovel|celular|tlm)\b[\s:.-]*(?:e\s+|d[oa]\s+|numero\s+)?/g },
+    { f: 'contacto', solo: 1, re: /\b((?:9[1236]\d|2\d\d)[\s.]?\d{3}[\s.]?\d{3})\b/g },
+    { f: 'hora', re: /\b(?:as|pelas|horas?)\s+(\d{1,2})\s*(?::|h|horas?\s+e|horas|e|\.|\s)\s*(\d{2})\b/g },
+    { f: 'hora', re: /\b(?:as|pelas)\s+(\d{1,2})\s*(?:h|horas)\b/g },
+    { f: 'hora', re: /\b(\d{1,2})[:h](\d{2})\b/g },
+    { f: 'local', drop: 1, not: /\b(?:n[oa]|a[oa]|d[oa])\s$/, re: /\b(?:localizacao|local|morada|endereco)\b[\s:.-]*(?:e\s+|fica\s+)?(?:n[oa]\s+|em\s+)?/g },
+    { f: 'local', not: naoApos, re: /(?:\b(?:n[oa]s?|em|pela?)\s+)?\b(rua|r(?=\.?\s+[\da-z])|avenida|av|travessa|largo|praca|campo,?\s+\d+ de \w+|campo d[aeo]s?|estrada nacional|estrada|en\s?\d+|alameda|caminho|calcada|beco|urbanizacao|bairro|lugar|quinta|zona industrial|parque industrial)\b/g },
+    { f: 'local', solo: 1, canon: 1, re: new RegExp('\\b(?:em|n[oa]s?|freguesia d[eoa]|freguesia)\\s+(' + LUGAR_ALT + ')\\b', 'g') },
+    { f: 'ref', drop: 1, re: /\b(?:ponto de referencia|referencia)\b[\s:.-]*(?:e\s+|fica\s+)?/g },
+    { f: 'ref', re: /\b(ao lado d[eoa]s?|ao pe d[eoa]s?|perto d[eoa]s?|perto|junto a[os]?|junto d[eoa]s?|junto|em frente a[os]?|em frente d[eoa]s?|em frente|proxim[oa] d[eoa]s?|proxim[oa] a[os]?|atras d[eoa]s?|depois d[eoa]s?|a seguir a[os]?|antes d[eoa]s?|na esquina|entre [oa]s?)\b/g },
+    { f: 'ref', not: naoApos, re: /\b(escola|colegio|creche|infantario)\b/g },
+    /* Fora do transporte, "para Barcelos" é o local da ocorrência, não um destino. */
+    { f: 'destino', re: new RegExp('\\b(?:para|ate\\s+a[oa]?s?|ate)\\s+(?:(?:fazer|realizar|realizacao de)\\s+)?(?:[oa]s?\\s+|uma?\\s+)?(' + (transp ? 'hospital|centro de saude|clinica|casa|domicilio|lar|consulta|exames?|hemodialise|maternidade|braga|barcelos|famalicao|porto|guimaraes|esposende|viana|povoa' : 'hospital|centro de saude|clinica|maternidade') + ')\\b', 'g') },
+    { f: 'destino', drop: 1, re: /\bdestino\b[\s:.-]*(?:e\s+|para\s+)?/g },
+    { f: 'desc', drop: 1, re: /\b(?:o que se passa|situacao|motivo|sintomas?)\b[\s:.-]*(?:e\s+)?/g },
+    { f: 'desc', not: naoApos, re: /\b((?:(?:dois|duas|tres|quatro|cinco|seis|\d+)\s+(?!masculino|feminino|homem|mulher|senhora?))?(?:queda de arvore|abertura de porta|fuga de gas|limpeza de via|abastecimento de agua|inundac\w+|cheia|salvamento|desencarceramento|colisao|despiste|capotamento|atropelamento|masculino|feminino|senhora?|sr\.?|sra\.?|homem|mulher|rapaz|rapariga|menino|menina|crianca|bebe|idos[oa]|doente|utente|vitimas?|pessoas?|jovem|feridos?|caiu|queda|dores|dor|inconsciente|tce|hiperglicemia|hipoglicemia|desmaiou|sangue|sangra|hemorragia|fumo|chamas|nao respira|mal estar|falta de ar|dificuldade\w* respirat\w+|vomitos?|tonturas?|febre|desorientad[oa]|sincope|avc|pcr|paragem|fratura|trauma\w*|queimad\w+|intoxica\w+|convuls\w+|a arder|carros?|viaturas?|veiculos?|ligeiros?|pesados?|motas?))\b/g },
+    { f: 'tipo', drop: 1, re: /\b(?:incendios?(?:\s+(?:florestal|urbano|industrial|em mato|de mato|em habitacao|em casa|em veiculo|de veiculo|numa habitacao))?|fogo|acidentes?(?:\s+de viacao)?|emergencias?(?:\s+medicas?)?|transferencias?(?:\s+medicalizadas?)?|recolha de cadaver(?:es)?|transportes? de cadaver(?:es)?|cadaver(?:es)?|transportes?|alta medica|altas?(?=\s+d[ao]\b))\b/g },
+  ];
+  if (transp) {
+    lista.push({ f: 'setor', solo: 1, re: new RegExp('\\b(?:(?:esta\\s+)?n[oa]\\s+|d[oa]\\s+|servico de\\s+)?(' + SETORES.map(sem).join('|') + ')\\b', 'g') });
+    lista.push({ f: 'extraNao', drop: 1, re: /\b(?:sem|nao tem|nao leva|nao precisa(?: de)?|nao vai(?: com)?)\s+(?:[oa]\s+)?(?:acompanhantes?|oxigenio|o\s?2|cadeira de rodas|rodas)\b/g });
+    lista.push({ f: 'extra', id: 'acomp', drop: 1, re: /\b(?:(?:com|c\/)\s*)?acompanhantes?\b/g });
+    lista.push({ f: 'extra', id: 'o2', drop: 1, re: /\b(?:(?:com|c\/)\s*)?(?:oxigenio|o2)\b|\b(?:com|c\/)\s*o\s?(?:2|dois)\b/g });
+    lista.push({ f: 'extra', id: 'rodas', drop: 1, re: /\b(?:(?:com|c\/|em)\s*)?(?:cadeira de rodas|rodas)\b/g });
+    lista.push({ f: 'local', re: /\b(?:d[oa]s?|de|desde)\s+(?:[oa]\s+)?(hospital|urgencia|pisos?|centro de saude|clinica|lar|casa|domicilio|maternidade)\b/g });
+    lista.push({ f: 'local', drop: 1, origem: 1, re: /\b(?:origem|desde|recolher?(?:\s+(?:n[oa]|em))?|buscar(?:\s+(?:a[oa]?|n[oa]))?)\b[\s:.-]*/g });
+    lista.push({ f: 'local', drop: 1, origem: 1, re: /\bd[ae]\s+(?=(?:rua|avenida|travessa|largo)\b)/g });
+    lista.push({ f: 'local', solo: 1, canon: 1, not: /\b(?:hospital|clinica|saude|maternidade|bombeiros|rua|avenida|travessa|largo|bairro|lugar|campo|estrada)\s$/, re: new RegExp('\\b(?:de|desde)\\s+(' + LUGAR_ALT + ')\\b', 'g') });
+  }
+  /* No papel o número CODU vem sozinho, sem a palavra CODU. */
+  if (tipo === 'emergencia') lista.push({ f: 'coduNu', re: /\b(\d{3}[\s.]?\d{2}[\s.]?\d{2})\b/g });
+  return lista;
+}
+
+const SETORES = ['Medicina', 'Cirurgia', 'Clínica Geral', 'Ortopedia', 'Pediatria'];
+const DIG = { zero: 0, um: 1, uma: 1, dois: 2, duas: 2, tres: 3, quatro: 4, cinco: 5, seis: 6, meia: 6, sete: 7, oito: 8, nove: 9 };
+function leDigitos(n, pos) {
+  const re = /\s*(\d+|[a-z]+)[.,-]?/y;
+  let d = '', fim = pos, modo = null;
+  for (;;) {
+    re.lastIndex = fim;
+    const m = re.exec(n);
+    if (!m) break;
+    const t = m[1];
+    if (/^\d/.test(t)) { if (modo === 'p') break; modo = 'n'; d += t; }
+    else if (t in DIG) { if (modo === 'n') break; modo = 'p'; d += DIG[t]; }
+    else break;
+    fim = re.lastIndex;
+  }
+  return { d, fim };
+}
+
+const limpaNum = n => String(n).replace(/^0+(?=\d)/, '');
+function leLista(n, pos) {
+  const m = /^(?:\s*(?:numeros?\s+|n\.?\s*)?\d+(?:\s*(?:,|e)(?=\s*\d))?)+/.exec(n.slice(pos));
+  return m ? { nums: m[0].match(/\d+/g).map(limpaNum), fim: pos + m[0].length } : { nums: [], fim: pos };
+}
+
+function formataTelefone(d) {
+  if (d.length === 12 && d.startsWith('351')) d = d.slice(3);
+  return d.length === 9 ? d.slice(0, 3) + ' ' + d.slice(3, 6) + ' ' + d.slice(6) : d;
+}
+
+const LIMPA_FIM = /[\s,;.:?!-]+$|\s+(?:e|é|há|com|que|a|o|as|os|de|do|da|dos|das|no|na|nos|nas|em|para|numa?|uma?|ao|tem|esta|fica)$/i;
+function limpa(v) {
+  let p;
+  do { p = v; v = v.replace(LIMPA_FIM, ''); } while (v !== p);
+  return v.replace(/^[\s,;.:-]+/, '').replace(/^(?:e|que)\s+/i, '').trim();
+}
+
+const LIGA = new Set(['de', 'do', 'da', 'dos', 'das', 'e', 'a', 'o']);
+function titulo(s) {
+  return s.split(' ').map((p, i) => (i && LIGA.has(p.toLowerCase())) ? p.toLowerCase() : p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+}
+const morada = s => titulo(s).replace(/^R\.?\s+/, 'Rua ').replace(/\bN[úu]mero\s+(\d)/g, 'nº $1').replace(/^Campo, /, 'Campo ');
+
+const ENCHIMENTO = /^(?:temos|tenho|tem|ha|houve|e|um|uma|uns|umas|o|a|os|as|de|do|da|dos|das|para|com|que|ola|bom dia|boa tarde|boa noite|ok|pronto|entao|portanto|certo|sim|no|na|em)(?:\s+|$)/;
+function semEnchimento(s) {
+  let v = limpa(s);
+  for (;;) {
+    const m = ENCHIMENTO.exec(sem(v));
+    if (!m) break;
+    v = v.slice(m[0].length);
+  }
+  return limpa(v);
+}
+
+function parseOcorrencia(texto) {
+  const t = texto.replace(/\s*\n+\s*/g, ', ').replace(/\s+/g, ' ').trim();
+  const n = sem(t);
+  const tipo = detetaTipo(n);
+  const achados = [];
+  for (const c of cues(tipo)) {
+    c.re.lastIndex = 0;
+    let m;
+    while ((m = c.re.exec(n))) {
+      if (m[0].length === 0) { c.re.lastIndex++; continue; }
+      if (c.not && c.not.test(n.slice(0, m.index))) continue;
+      const fim = m.index + m[0].length;
+      const val = (c.f === 'hora' || c.drop || !m[1]) ? fim : m.index + m[0].lastIndexOf(m[1]);
+      achados.push({ c, ini: m.index, fim, val, m });
+    }
+  }
+  achados.sort((a, b) => a.ini - b.ini || b.fim - a.fim);
+  const hits = [];
+  let ate = 0;
+  for (const h of achados) {
+    if (h.ini < ate) continue;
+    const ant = hits[hits.length - 1];
+    if (ant && ant.c.f === 'ref' && !ant.c.drop && h.c.f === 'local' && !h.c.solo && h.ini === ant.fim + 1) continue;
+    hits.push(h);
+    ate = h.fim;
+  }
+
+  const r = { tipo, rotulo: rotuloTipo(tipo, n), local: '', ref: '', destino: '', desc: '', codu: '', sado: '', contacto: '', hora: '', bombeiros: [], particular: false, quem: '', semNumero: false, hospital: false, prio: '', extras: {}, setor: '', meio: '' };
+  const ruas = [], fregs = [], refs = [], destinos = [], partes = [];
+  const sobra = (ini, fim) => { if (fim > ini) partes.push({ ini, fim, s: t.slice(ini, fim), solto: 1 }); };
+  const transp = tipo === 'transporte' || tipo === 'transferencia';
+  sobra(0, hits.length ? hits[0].ini : t.length);
+  let lido = 0, viuDestino = false;
+  hits.forEach((h, i) => {
+    if (h.ini < lido) return;
+    const fim = i + 1 < hits.length ? hits[i + 1].ini : t.length;
+    const f = h.c.f;
+    if (f === 'codu' || f === 'sado' || (f === 'contacto' && h.c.drop)) {
+      const { d, fim: f2 } = leDigitos(n, h.val);
+      if (f === 'codu' && d) r.codu = d;
+      if (f === 'sado' && d) r.sado = d;
+      if (f === 'contacto' && d) r.contacto = formataTelefone(d);
+      lido = f2;
+      sobra(f2, Math.max(fim, f2));
+    } else if (f === 'coduNu') {
+      if (!r.codu) r.codu = h.m[1].replace(/\D/g, '');
+      sobra(h.fim, fim);
+    } else if (f === 'sexo') {
+      const resto = t.slice(h.fim, fim).replace(/^[,\s]+/, '');
+      partes.push({ ini: h.ini, fim, s: (h.m[1] === 'm' ? 'Masculino' : 'Feminino') + ' de ' + h.m[2] + ', ' + resto });
+    } else if (f === 'meio') {
+      const nome = h.m[1].charAt(0).toUpperCase() + h.m[1].slice(1) + ' ' + (h.m[2] in DIG ? DIG[h.m[2]] : h.m[2]);
+      r.meio = r.meio ? r.meio + ', ' + nome : nome;
+    } else if (f === 'setor') {
+      r.setor = SETORES.find(s => sem(s) === h.m[1]);
+      sobra(h.fim, fim);
+    } else if (f === 'extra' || f === 'extraNao') {
+      if (f === 'extra') r.extras[h.c.id] = true;
+      sobra(h.fim, fim);
+    } else if (f === 'prio') {
+      r.prio = 'P' + (h.m[1] || DIG[h.m[2]]);
+      sobra(h.fim, fim);
+    } else if (f === 'hospital') {
+      r.hospital = true;
+      sobra(h.fim, fim);
+    } else if (f === 'pedido') {
+      r.particular = true;
+      const q = h.m[1] || h.m[2];
+      if (q) r.quem = q.charAt(0).toUpperCase() + q.slice(1);
+      sobra(h.fim, fim);
+    } else if (f === 'decisao') {
+      r.semNumero = true;
+      sobra(h.fim, fim);
+    } else if (f === 'bombeiro') {
+      const { nums, fim: f2 } = leLista(n, h.val);
+      r.bombeiros.push(...nums);
+      lido = f2;
+      sobra(f2, Math.max(fim, f2));
+    } else if (f === 'contacto') {
+      const v = t.slice(h.val, h.fim);
+      r.contacto = /^\d/.test(v) ? formataTelefone(v.replace(/\D/g, '')) : /^(?:psp|gnr)$/i.test(v) ? v.toUpperCase() : titulo(v);
+      sobra(h.fim, fim);
+    } else if (f === 'hora') {
+      const hh = +h.m[1], mm = +(h.m[2] || 0);
+      if (hh < 24 && mm < 60) r.hora = String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0');
+      sobra(h.fim, fim);
+    } else if (f === 'tipo') {
+      sobra(h.fim, fim);
+    } else if (f === 'local' && h.c.solo) {
+      const fala = FALAS.find(x => x.fala === h.m[1]);
+      const nome = fala ? fala.nome : FORA.find(l => sem(l) === h.m[1]) || t.slice(h.val, h.fim);
+      if (viuDestino && transp) destinos.push(nome); else fregs.push(nome);
+      sobra(h.fim, fim);
+    } else if (f === 'local') {
+      if (h.c.origem) viuDestino = false;
+      const v = morada(limpa(t.slice(h.val, fim)));
+      if (v) (viuDestino && transp ? destinos : ruas).push(v);
+    } else if (f === 'ref') {
+      const v = limpa(t.slice(h.val, fim));
+      if (v) refs.push(v);
+    } else if (f === 'destino') {
+      const v = morada(limpa(t.slice(h.val, fim)));
+      if (v) destinos.push(v);
+      viuDestino = true;
+    } else if (f === 'desc') {
+      partes.push({ ini: h.val, fim, s: t.slice(h.val, fim) });
+    }
+  });
+
+  const unir = l => l.filter((v, i) => !l.some((o, j) => j !== i && sem(o).includes(sem(v)) && (o.length > v.length || j < i))).join(', ');
+  r.local = unir(ruas.concat(fregs));
+  r.ref = refs.join(', ');
+  r.destino = unir(destinos);
+
+  /* Só entra o que foi reconhecido como informação; o que sobra da frase é conversa e fica de fora. */
+  const blocos = [];
+  for (const p of partes.filter(x => !x.solto).sort((a, b) => a.ini - b.ini)) {
+    const ant = blocos[blocos.length - 1];
+    if (ant && p.ini <= ant.fim + 1) { ant.s = ant.s.trimEnd() + ' ' + p.s; ant.fim = p.fim; }
+    else blocos.push(Object.assign({}, p));
+  }
+  const frases = blocos.map(p => limpa(p.s).replace(/^uma?\s+(?=\S)/i, '')).filter(v => v.length >= 3);
+  const desc = frases.join(', ');
+  r.desc = desc.charAt(0).toUpperCase() + desc.slice(1);
+  return r;
+}
+
+const RUA = /\b(?:rua|avenida|av|travessa|largo|praca|campo\s+\d+|campo d[aeo]s?|estrada|en\s?\d+|alameda|caminho|calcada|urbanizacao)\b/;
+const refNua = r => r.replace(/^(?:ao lado|ao p[eé]|perto|junto|em frente|pr[oó]xim[oa]|atr[aá]s|depois|a seguir|antes)(?:\s+(?:de|do|da|dos|das|a|ao|aos|às|as))?\s+/i, '');
+const foraDeBarcelos = s => FORA.some(l => sem(s).includes(sem(l)));
+
+const precoTexto = v => (Number.isInteger(v) ? String(v) : Number(v).toFixed(2)).replace('.', ',');
+
+/* Barcelos é a sede do concelho: uma freguesia dita no mesmo texto é mais precisa e tem prioridade. */
+const chave = s => sem(s || '').replace(/[()]/g, ' ').replace(/\b(?:d[eoa]s?)\b/g, ' ').replace(/\s+/g, ' ').trim();
+function precoDe(txt, precos) {
+  const n = chave(txt);
+  const contem = nome => new RegExp('\\b' + chave(nome).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b').test(n);
+  const bate = precos.filter(p => contem(p.nome));
+  if (bate.length) return bate.sort((a, b) => (chave(a.nome) === 'barcelos') - (chave(b.nome) === 'barcelos') || b.nome.length - a.nome.length)[0];
+  /* "Galegos" sem dizer qual: só serve se as duas tiverem o mesmo preço. */
+  const iguais = precos.filter(p => p.nome.includes(' (') && contem(p.nome.split(' (')[0]));
+  return iguais.length && new Set(iguais.map(p => p.valor)).size === 1 ? { nome: iguais[0].nome.split(' (')[0], valor: iguais[0].valor } : null;
+}
+
+/* Particular: transporte cobra sempre; o resto só depois de o 112 não atribuir número. Incêndio e acidente abrem-se com o comando. */
+function cobrancaDe({ particular, tipo, codu, semNumero, local, destino, precos, valorManual, volta, esperaH, o2, o2H, rodas, medicalizada }) {
+  if (!particular || tipo === 'outro') return null;
+  if (tipo === 'incendio' || tipo === 'acidente') return { estado: 'comando' };
+  const transp = tipo === 'transporte' || tipo === 'transferencia';
+  if (!transp && codu) return { estado: 'urgente' };
+  if (transp) return valorTransporte({ local, destino, precos, valorManual, volta, esperaH, o2, o2H, rodas, medicalizada });
+  const ordem = [local, destino];
+  let t = null;
+  for (const v of ordem) { t = precoDe(v, precos); if (t) break; }
+  const valor = valorManual !== null ? valorManual : (t ? precoTexto(t.valor) : '');
+  return { estado: transp || semNumero ? 'cobrar' : 'aguarda', valor, onde: valorManual === null && t ? t.nome : '' };
+}
+
+/* Transporte: freguesia + hospital; em exame e consulta há volta e soma a freguesia outra vez. A saída do nosso hospital não conta como lugar. */
+function valorTransporte({ local, destino, precos, valorManual, volta, esperaH, o2, o2H, rodas, medicalizada }) {
+  const nosso = s => /\bhospital\s+(?:de\s+)?barcelos\b|\burgencia\b|\bpisos?\b/.test(sem(s || ''));
+  const taxa = nome => (precos.find(p => chave(p.nome).startsWith(nome)) || {}).valor || 0;
+  const horas = v => parseFloat(String(v || '').replace(',', '.')) || 0;
+  let a = nosso(local) ? null : precoDe(local, precos);
+  let b = nosso(destino) ? null : precoDe(destino, precos);
+  if (a && b && a.nome === b.nome) b = null;
+  /* Barcelos é a nossa freguesia: indo a outro lugar, cobra-se só esse lugar. */
+  const barcelos = p => !!p && chave(p.nome) === 'barcelos', daCidade = barcelos(a) || barcelos(b);
+  const outro = a && b ? (barcelos(a) ? b : barcelos(b) ? a : null) : null;
+  if (outro) { a = outro; b = null; }
+  const contas = [a, b].filter(Boolean).map(p => [p.nome, p.valor]), falta = [];
+  const base = a || b;
+  if (base) {
+    if (volta) {
+      const freg = [a, b].find(p => p && !/hospital|maternidade|clinica|ipo|hpp|cimo|centro|instituto|casa saude|junta|trofa|braga|famalicao/.test(chave(p.nome)));
+      if (freg && !barcelos(freg)) contas.push(['volta', freg.valor]); else if (!daCidade) falta.push('a volta, porque falta a freguesia');
+    }
+    if (horas(esperaH)) contas.push(['espera ' + precoTexto(horas(esperaH)) + ' h', horas(esperaH) * taxa('tempo espera')]);
+    if (o2) { if (horas(o2H)) contas.push(['O₂ ' + precoTexto(horas(o2H)) + ' h', horas(o2H) * taxa('aplicacao oxigenio')]); else falta.push('as horas de O₂'); }
+    if (rodas && taxa('cadeira rodas')) contas.push(['cadeira de rodas', taxa('cadeira rodas')]);
+    if (medicalizada) { contas.push(['taxa medicalizada', taxa('taxa medicalizada')]); falta.push('os kms, os consumíveis e o acompanhamento'); }
+  }
+  const soma = contas.reduce((t, c) => t + c[1], 0);
+  const manual = valorManual !== null && valorManual !== undefined;
+  return { estado: 'cobrar', valor: manual ? valorManual : (base ? precoTexto(soma) : ''), onde: manual ? '' : contas.map(c => c[0] + ' ' + precoTexto(c[1])).join(' + '), falta: manual ? [] : falta };
+}
+
+function consultasMapa(c) {
+  const ref = refNua(c.ref || ''), lista = [];
+  const sufixo = s => (s = s.replace(/[()]/g, '').replace(/^(?:Urgência|Pisos?)(?=,|$)/, 'Hospital de Barcelos'), foraDeBarcelos(s) || /\bbarcelos$/i.test(s) ? s + ', Portugal' : s + ', Barcelos, Portugal');
+  if (c.local && RUA.test(sem(c.local))) lista.push(sufixo(c.local));
+  if (c.local && ref) lista.push(sufixo(ref + ', ' + c.local));
+  if (c.local && !RUA.test(sem(c.local))) lista.push(sufixo(c.local));
+  if (ref) lista.push(sufixo(ref));
+  return lista.filter((q, i) => lista.indexOf(q) === i);
+}
+/*PARSER-END*/
+
+const $ = id => document.getElementById(id);
+/* Contactos e preços vão cifrados: cada conta guarda a sua cópia da chave e a página só tem o resumo do nome da conta. */
+/*COFRE-INICIO*/const COFRE = {"n":600000,"d":{"i":"BWwvUCbmgY9JoQyc","c":"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"},"contas":[{"u":"gfeirNum9bc/hc/Sg0hTkQtFthvR0GfK6YEkrFqEFsI=","s":"n/VdjHgYx3uXU8tKk2Y6hw==","i":"ApS5Vphj2hmpAEQq","c":"cNJPUKpiQDwIDXc/i18LiFPYagBsPKmUEWl/1/Jkw5vXnlNoM7yKBszT52jOkQ8o"}]};/*COFRE-FIM*/
+const contaId = s => sem(s).replace(/[^a-z0-9]/g, '');
+async function abreCofre(conta, senha) {
+  const b = s => Uint8Array.from(atob(s), c => c.charCodeAt(0)), txt = new TextEncoder();
+  const resumo = await crypto.subtle.digest('SHA-256', txt.encode('cartao|' + contaId(conta)));
+  const id = btoa(String.fromCharCode(...new Uint8Array(resumo)));
+  const c = COFRE.contas.find(x => x.u === id);
+  if (!c) throw new DOMException('', 'OperationError');
+  const base = await crypto.subtle.importKey('raw', txt.encode(senha), 'PBKDF2', false, ['deriveKey']);
+  const k = await crypto.subtle.deriveKey({ name: 'PBKDF2', salt: b(c.s), iterations: COFRE.n, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
+  const dadosK = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b(c.i) }, k, b(c.c));
+  const kd = await crypto.subtle.importKey('raw', dadosK, 'AES-GCM', false, ['decrypt']);
+  const claro = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b(COFRE.d.i) }, kd, b(COFRE.d.c));
+  return JSON.parse(new TextDecoder().decode(claro));
+}
+const CAMPOS = ['hora', 'codu', 'meio', 'contacto', 'prio', 'setor', 'local', 'ref', 'destino', 'desc'];
+const EXEMPLO = 'Incêndio em mato na Rua da Igreja em Arcozelo perto do cemitério fumo visível da estrada contacto 912 345 678';
+const ler = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } };
+const gravar = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+
+const hojeHora = () => new Date().toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
+const vazio = () => ({ texto: '', campos: {}, editados: {}, tipo: null, rotulo: '', tipoManual: false, ponto: null, opcoes: [], inicio: null, exemplo: false, id: Date.now(), equipa: [], ditos: [], tirados: [], partDito: false, hospDito: false, semManual: null, semDito: false, valorManual: null, extrasManual: {}, extrasDito: {}, esperaH: '', o2H: '', maisUm: false });
+let S = vazio();
+
+/* Com contas, os dados abertos ficam só até fechar a aba; assim cada abertura pede a entrada. */
+const sessao = {
+  ler: (k, d) => { try { const v = sessionStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
+  gravar: (k, v) => { try { sessionStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const guarda = COFRE ? sessao : { ler, gravar };
+let contactos = guarda.ler('cartao.contactos', []);
+let precos = guarda.ler('cartao.precos', [{ nome: 'Barcelos', valor: 20 }, { nome: 'Arcozelo', valor: 25 }]);
+/* Só um telefone no contactante é chamada particular; 112, 117, PSP, GNR, urgência, pisos e consulta externa não cobram. */
+const particular = () => {
+  const c = (S.campos.contacto || '').trim();
+  return (c ? c.replace(/\D/g, '').length >= 9 : S.partDito) && !S.hospDito;
+};
+
+/* Condições do transporte: só aparecem na mensagem quando são positivas. */
+const EXTRAS = { acomp: 'c/ acompanhante', o2: 'c/ O₂', rodas: 'c/ rodas' };
+const temExtra = k => k in S.extrasManual ? S.extrasManual[k] : !!S.extrasDito[k];
+const comExtras = () => (S.tipo === 'transporte' || S.tipo === 'transferencia') && S.rotulo !== 'Transporte de cadáver';
+const textoExtras = () => comExtras() ? Object.keys(EXTRAS).filter(temExtra).map(k => EXTRAS[k]).join(' · ') : '';
+
+const semCodu = () => S.tipo === 'transporte' || S.tipo === 'transferencia';
+
+/* Prioridades da triagem do INEM: no cartão aparece só o código. */
+const PRIOS = ['P1', 'P2', 'P3', 'P4', 'P5'];
+
+/* Áreas só contam para emergência médica, incêndio e acidente; no transporte interessa só a distância. */
+const COM_AREA = ['emergencia', 'incendio', 'acidente'];
+const kmTexto = km => km === 'TS' ? 'TS' : km + ' km';
+const nomeArea = e => e.nome + ': ' + CORPOS[e.area] + ', ' + kmTexto(e.km);
+function infoArea() {
+  const f = areaDe(S.campos.local) || areaDe(S.campos.destino);
+  if (!f) return null;
+  const itens = f.itens, comArea = !S.tipo || COM_AREA.includes(S.tipo);
+  if (!comArea) {
+    const km = [...new Set(itens.map(e => kmTexto(e.km)))].join(' ou ');
+    return { nossa: '', texto: f.nome + ' · ' + km, msg: ['Distância', km] };
+  }
+  if (itens.length > 1 && new Set(itens.map(e => e.area + e.km)).size > 1)
+    return { nossa: 'nao', texto: 'Confirme a freguesia. ' + itens.map(nomeArea).join(' · '), msg: ['Área', 'por confirmar'] };
+  const e = itens[0], nossa = e.area === NOSSA;
+  return {
+    nossa: nossa ? 'sim' : 'nao',
+    texto: (nossa ? 'Nossa área' : 'Fora da área: é de ' + CORPOS[e.area] + '. Só se pedirem apoio') + ' · ' + kmTexto(e.km),
+    msg: ['Área', CORPOS[e.area] + ', ' + kmTexto(e.km) + (nossa ? '' : ' (fora da área)')],
+  };
+}
+const semNumero = () => S.semManual !== null ? S.semManual : S.semDito;
+const cobranca = () => cobrancaDe({ particular: particular(), tipo: S.tipo, codu: S.campos.codu, semNumero: semNumero(), local: S.campos.local, destino: S.campos.destino, precos, valorManual: S.valorManual,
+  volta: ['Transporte para exame', 'Transporte para consulta'].includes(S.rotulo), esperaH: S.esperaH, o2: comExtras() && temExtra('o2'), o2H: S.o2H, rodas: comExtras() && temExtra('rodas'), medicalizada: S.rotulo === 'Transferência medicalizada' });
+const euros = v => v ? v + ' €' : '';
+const achaB = n => contactos.find(c => c.num === limpaNum(n)) || contactos.find(c => c.mec && c.mec === n);
+const equipa = () => [...new Set(S.equipa.concat(S.ditos.filter(n => !S.tirados.includes(n))))];
+const numB = n => String(n).padStart(3, '0');
+const nomeB = n => {
+  const c = achaB(n);
+  return c ? numB(c.num) + ' ' + c.nome + (c.cat ? ', ' + c.cat : '') : numB(n);
+};
+/* Aceita 024, 24 ou o nome; o mecanográfico compara-se como foi escrito, porque os zeros contam. */
+const bateB = (c, q) => {
+  const n = sem(q.trim()).replace(/^h(?=\d)/, '');
+  return /^\d+$/.test(n) ? c.num.startsWith(limpaNum(n)) || (c.mec || '').startsWith(n) : sem(c.nome).includes(n);
+};
+
+function atualiza(brilhar) {
+  const p = parseOcorrencia(S.texto);
+  S.ditos = p.bombeiros;
+  S.partDito = p.particular;
+  S.hospDito = p.hospital;
+  S.semDito = p.semNumero;
+  S.extrasDito = p.extras;
+  if (S.texto.trim() && !S.inicio) S.inicio = hojeHora();
+  if (!S.tipoManual) { S.tipo = p.tipo; S.rotulo = p.rotulo; }
+  for (const f of CAMPOS) {
+    if (S.editados[f]) continue;
+    const novo = f === 'hora' ? (p.hora || S.inicio || '') : p[f];
+    if ((S.campos[f] || '') !== (novo || '') && (f === 'local' || f === 'ref')) { S.ponto = null; S.opcoes = []; avisoMapa = ''; }
+    if (brilhar && (S.campos[f] || '') !== (novo || '') && novo) {
+      const el = document.querySelector('[data-f="' + f + '"]');
+      el.classList.remove('brilho'); void el.offsetWidth; el.classList.add('brilho');
+    }
+    S.campos[f] = novo;
+  }
+  desenha();
+}
+
+function desenha() {
+  for (const f of CAMPOS) {
+    const el = $('f-' + f);
+    if (document.activeElement !== el) el.value = S.campos[f] || '';
+  }
+  $('faixa').dataset.tipo = S.tipo || 'outro';
+  $('rotulo').textContent = S.rotulo || (S.tipo ? TIPOS[S.tipo] : 'Tipo de serviço');
+  for (const b of $('chips').children) b.setAttribute('aria-pressed', String(b.dataset.id === S.tipo));
+  $('linhaDestino').hidden = !(S.tipo === 'transporte' || S.tipo === 'transferencia' || S.campos.destino);
+  /* CODU nunca existe em transporte nem em transferência. */
+  $('linhaCodu').hidden = semCodu() || !(!S.tipo || S.tipo === 'emergencia' || S.campos.codu);
+  $('linhaPrio').hidden = $('prioBloco').hidden = !(S.tipo === 'emergencia' || S.campos.prio);
+  $('linhaMeio').hidden = !(!S.tipo || COM_AREA.includes(S.tipo) || S.campos.meio);
+  $('linhaExtras').hidden = $('linhaSetor').hidden = !comExtras();
+  /* Em transportes o tipo já diz o motivo: o campo só aparece se tiver sido dito algo mais. */
+  $('linhaDesc').hidden = (S.tipo === 'transporte' || S.tipo === 'transferencia') && !S.campos.desc;
+  for (const b of $('setorChips').children) b.setAttribute('aria-pressed', String(sem(b.textContent) === sem((S.campos.setor || '').trim())));
+  for (const b of $('extras').children) b.setAttribute('aria-pressed', String(temExtra(b.dataset.k)));
+  const prio = (S.campos.prio || '').trim().toUpperCase();
+  for (const b of $('prioChips').children) b.setAttribute('aria-pressed', String(b.dataset.p === prio));
+  $('avisoExemplo').hidden = !S.exemplo;
+  const area = infoArea();
+  $('areaCartao').hidden = !area;
+  if (area) { $('areaCartao').textContent = area.texto; $('areaCartao').dataset.nossa = area.nossa; }
+  desenhaPedido();
+
+  const url = linkMapa();
+  const verMapa = $('verMapa');
+  verMapa.href = url || 'https://www.google.com/maps';
+  verMapa.setAttribute('aria-disabled', String(!url));
+  $('procurar').disabled = !consultasMapa(S.campos).length;
+  desenhaOpcoes();
+
+  const wa = mensagem('wa'), sms = mensagem('sms');
+  $('previa').textContent = wa;
+  $('wa').href = 'https://wa.me/?text=' + encodeURIComponent(wa);
+  const tels = equipa().map(achaB).filter(c => c && c.tel).map(c => '+' + c.tel);
+  $('sms').href = 'sms:' + tels.join(',') + '?&body=' + encodeURIComponent(sms);
+  $('sms').textContent = tels.length ? 'SMS à equipa' : 'SMS';
+  const semDados = S.exemplo || !temConteudo();
+  for (const id of ['wa', 'sms']) $(id).setAttribute('aria-disabled', String(semDados));
+  $('copiar').disabled = semDados;
+  $('partilhar').disabled = semDados;
+  desenhaEquipa(wa, semDados);
+  if (!S.exemplo) gravar('cartao.rascunho', S);
+}
+
+const temConteudo = () => CAMPOS.some(f => f !== 'hora' && S.campos[f]) || !!S.tipo;
+
+function desenhaPedido() {
+  const p = particular(), cob = cobranca(), caixa = $('estadoCobranca');
+  $('pedido').hidden = !p;
+  caixa.hidden = !cob;
+  if (cob) {
+    caixa.dataset.estado = cob.estado;
+    caixa.textContent = {
+      comando: 'Abrir a ocorrência com o comando.',
+      urgente: 'CODU atribuiu número. Não cobrar.',
+      aguarda: 'Passe a chamada ao 112. ' + (cob.valor ? 'Se não atribuir número, cobrar ' + euros(cob.valor) + '.' : 'Se não atribuir número, falta o preço deste local.'),
+      cobrar: (cob.valor ? 'Cobrar ' + euros(cob.valor) + (cob.onde ? ' (' + cob.onde + ').' : '.') : 'Cobrar. Falta o preço deste local.') + (cob.falta && cob.falta.length ? ' Falta somar ' + cob.falta.join(' e ') + '.' : ''),
+    }[cob.estado];
+  }
+  const transp = S.tipo === 'transporte' || S.tipo === 'transferencia';
+  const comValor = !!cob && 'valor' in cob;
+  $('btnSemNumero').hidden = !comValor || transp;
+  $('btnSemNumero').setAttribute('aria-pressed', String(semNumero()));
+  $('linhaValor').hidden = !comValor;
+  if (comValor && document.activeElement !== $('f-valor')) $('f-valor').value = cob.valor;
+  $('valorTabela').hidden = S.valorManual === null;
+  $('linhaHoras').hidden = !comValor || !transp;
+  for (const [id, k] of [['f-espera', 'esperaH'], ['f-o2h', 'o2H']]) if (document.activeElement !== $(id)) $(id).value = S[k] || '';
+}
+
+function desenhaEquipa(wa, semDados) {
+  const caixa = $('escolhidos'), envio = $('porBombeiro');
+  caixa.textContent = '';
+  envio.textContent = '';
+  for (const n of equipa()) {
+    const c = achaB(n);
+    const linha = document.createElement('div'); linha.className = 'escolhido';
+    const s = document.createElement('span'); s.textContent = nomeB(n);
+    const x = document.createElement('button');
+    x.type = 'button'; x.textContent = 'Tirar'; x.setAttribute('aria-label', 'Tirar ' + nomeB(n) + ' da equipa');
+    x.onclick = () => { S.equipa = S.equipa.filter(v => v !== n); if (!S.tirados.includes(n)) S.tirados.push(n); desenha(); };
+    linha.append(s, x);
+    caixa.appendChild(linha);
+    if (c && c.tel) {
+      const a = document.createElement('a');
+      a.className = 'botao'; a.target = '_blank'; a.rel = 'noopener';
+      a.href = 'https://wa.me/' + c.tel + '?text=' + encodeURIComponent(wa);
+      a.textContent = 'WhatsApp para ' + c.nome;
+      a.setAttribute('aria-disabled', String(semDados));
+      a.onclick = () => { guardaRecente(); $('feedback').textContent = 'WhatsApp aberto para ' + c.nome + '. Confirme o envio lá e volte para enviar ao próximo.' + faltas(); };
+      envio.appendChild(a);
+    }
+  }
+  envio.hidden = !envio.children.length;
+  /* A caixa só aparece quando se pede para adicionar. */
+  const aEscrever = S.maisUm;
+  $('bombeiro').hidden = !aEscrever;
+  $('maisBombeiro').hidden = aEscrever;
+}
+
+/* O número completo basta: ao bater com um bombeiro da lista, ele entra sozinho. */
+const exatoB = v => contactos.find(c => c.num === limpaNum(sem(v.trim()).replace(/^h(?=\d)/, '')));
+
+function juntaBombeiro(n) {
+  S.maisUm = false;
+  if (!S.equipa.includes(n)) S.equipa.push(n);
+  S.tirados = S.tirados.filter(v => v !== n);
+  $('bombeiro').value = '';
+  $('sugestoes').textContent = '';
+  desenha();
+}
+
+function procuraBombeiro() {
+  const q = $('bombeiro').value.trim(), caixa = $('sugestoes');
+  caixa.textContent = '';
+  if (!q) return [];
+  const exato = limpaNum(sem(q));
+  const achados = contactos.filter(c => bateB(c, q))
+    .sort((a, b) => (b.num === exato) - (a.num === exato) || a.num - b.num).slice(0, 5);
+  if (!achados.length) {
+    caixa.textContent = contactos.length ? 'Não encontrei esse bombeiro na lista.' : 'A lista de bombeiros ainda não está neste aparelho.';
+    return [];
+  }
+  for (const c of achados) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.textContent = nomeB(c.num);
+    b.onclick = () => juntaBombeiro(c.num);
+    caixa.appendChild(b);
+  }
+  return achados;
+}
+
+const lerValor = v => { const n = parseFloat(String(v).replace(/[€\s]/g, '').replace(',', '.')); return n >= 0 ? n : null; };
+
+function poePreco(nome, valor) {
+  const i = precos.findIndex(p => sem(p.nome) === sem(nome));
+  if (i >= 0) precos[i] = { nome, valor }; else precos.push({ nome, valor });
+}
+
+function guardaPrecos() {
+  precos.sort((a, b) => a.nome.localeCompare(b.nome, 'pt'));
+  guarda.gravar('cartao.precos', precos);
+  desenhaPrecos();
+  desenha();
+}
+
+function desenhaPrecos() {
+  $('nPrecos').textContent = precos.length;
+  const caixa = $('listaPrecos');
+  caixa.textContent = '';
+  for (const p of precos) {
+    const linha = document.createElement('div'); linha.className = 'contacto';
+    const s = document.createElement('span');
+    s.textContent = p.nome + ' · ' + euros(precoTexto(p.valor));
+    const b = document.createElement('button');
+    b.type = 'button'; b.textContent = 'Apagar'; b.setAttribute('aria-label', 'Apagar preço de ' + p.nome);
+    b.onclick = () => { precos = precos.filter(x => x !== p); guardaPrecos(); };
+    linha.append(s, b);
+    caixa.appendChild(linha);
+  }
+}
+
+function importaPrecos() {
+  let bons = 0, maus = 0;
+  for (const linha of $('importarPrecos').value.split(/\r?\n/)) {
+    if (!linha.trim()) continue;
+    const p = linha.split(/\t|;/).map(v => v.trim());
+    const valor = lerValor(p[1]);
+    if (p[0] && valor !== null) { poePreco(p[0], valor); bons++; } else maus++;
+  }
+  guardaPrecos();
+  $('importarPrecos').value = '';
+  $('msgPrecos').textContent = bons + ' importados.' + (maus ? ' ' + maus + ' linhas ignoradas: confirme o nome e o valor.' : '');
+}
+
+function linkMapa() {
+  if (S.ponto) return 'https://www.google.com/maps/search/?api=1&query=' + S.ponto.lat + ',' + S.ponto.lon;
+  const q = consultasMapa(S.campos)[0];
+  return q ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q) : '';
+}
+
+function mensagem(modo) {
+  const c = S.campos, nome = (S.rotulo || (S.tipo ? TIPOS[S.tipo] : 'Ocorrência')).toUpperCase();
+  const linhas = [modo === 'wa' ? '*' + nome + '*' : nome];
+  const add = (r, v) => { if (v) linhas.push(r + ': ' + v); };
+  const freg = areaDe(c.local);
+  if (freg) linhas.push(freg.nome + (c.hora ? ' · ' + c.hora : '')); else add('Hora', c.hora);
+  add('Local', freg ? (c.local || '').split(', ').filter(p => sem(p) !== sem(freg.nome)).join(', ') : c.local);
+  if (comExtras()) add('Serviço', (c.setor || '').trim());
+  add('Referência', c.ref);
+  add('Destino', c.destino);
+  if (textoExtras()) linhas.push(textoExtras());
+  add('Circunstâncias', c.desc);
+  add('Prioridade', (c.prio || '').trim().toUpperCase()); if (!semCodu()) add('CODU', c.codu);
+  const cob = cobranca();
+  if (cob && cob.estado === 'cobrar') add('Cobrar', euros(cob.valor) || 'valor por confirmar');
+  add('Mapa', linkMapa());
+  return linhas.join('\n');
+}
+
+let procura = 0, avisoMapa = '';
+const espera = ms => new Promise(r => setTimeout(r, ms));
+const avisa = t => { avisoMapa = t; $('pontoEstado').textContent = t; };
+async function procuraPonto() {
+  const lista = consultasMapa(S.campos);
+  if (!lista.length) return;
+  const minha = ++procura;
+  avisa('A procurar no mapa…');
+  try {
+    for (let i = 0; i < lista.length; i++) {
+      if (i) await espera(1100);
+      const u = new URL('https://nominatim.openstreetmap.org/search');
+      u.search = new URLSearchParams({ q: lista[i], format: 'jsonv2', limit: '3', countrycodes: 'pt', 'accept-language': 'pt' });
+      if (!foraDeBarcelos(lista[i])) { u.searchParams.set('viewbox', '-8.76,41.64,-8.48,41.42'); u.searchParams.set('bounded', '1'); }
+      const r = await fetch(u);
+      const dados = await r.json();
+      if (minha !== procura) return;
+      if (dados.length) {
+        const ditos = LUGARES.filter(l => sem(S.campos.local || '').includes(sem(l)));
+        const bate = d => ditos.some(l => sem(d.display_name).includes(sem(l))) ? 0 : 1;
+        S.opcoes = dados.slice().sort((a, b) => bate(a) - bate(b)).map(d => ({ lat: d.lat, lon: d.lon, nome: d.display_name.split(',').slice(0, 4).join(',') }));
+        /* Um ponto errado manda a equipa ao sítio errado: só se assume sozinho um resultado único e sem dúvida. */
+        const certo = i === 0 && dados.length === 1 && (!ditos.length || bate(dados[0]) === 0);
+        S.ponto = certo ? S.opcoes[0] : null;
+        avisa('Escolha o ponto certo. Até lá, o link abre a pesquisa do local.');
+        desenha();
+        return;
+      }
+    }
+    avisa('Ponto exato não encontrado. O link abre a pesquisa do local no Google Maps.');
+  } catch {
+    if (minha === procura) avisa('A procura de ponto exato não está disponível aqui. O link abre a pesquisa do local no Google Maps.');
+  }
+}
+
+function desenhaOpcoes() {
+  const caixa = $('opcoes');
+  caixa.textContent = '';
+  $('pontoEstado').textContent = S.ponto ? 'Ponto escolhido. Abra Ver no mapa para confirmar.'
+    : !linkMapa() ? 'Diga o local para criar o link do mapa.'
+    : avisoMapa || 'Link do mapa criado com a pesquisa do local.';
+  for (const o of S.opcoes) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.textContent = o.nome;
+    b.setAttribute('aria-pressed', String(!!S.ponto && S.ponto.lat === o.lat && S.ponto.lon === o.lon));
+    b.onclick = () => { S.ponto = o; desenha(); };
+    caixa.appendChild(b);
+  }
+}
+
+function guardaRecente() {
+  const agora = Date.now();
+  const lista = ler('cartao.recentes', []).filter(c => agora - c.ts < 864e5 && c.id !== S.id);
+  lista.unshift({ id: S.id, ts: agora, S: JSON.parse(JSON.stringify(S)) });
+  gravar('cartao.recentes', lista.slice(0, 30));
+  desenhaRecentes();
+}
+
+function desenhaRecentes() {
+  const agora = Date.now();
+  const lista = ler('cartao.recentes', []).filter(c => agora - c.ts < 864e5);
+  gravar('cartao.recentes', lista);
+  $('recentes').hidden = !lista.length;
+  const caixa = $('listaRecentes');
+  caixa.textContent = '';
+  for (const c of lista) {
+    const linha = document.createElement('div'); linha.className = 'recente';
+    const h = document.createElement('span'); h.className = 'h'; h.textContent = c.S.campos.hora || '--:--';
+    const d = document.createElement('span'); d.className = 'd';
+    d.textContent = (c.S.rotulo || 'Ocorrência') + (c.S.campos.local ? ' · ' + c.S.campos.local : '');
+    const b = document.createElement('button'); b.type = 'button'; b.textContent = 'Abrir';
+    b.onclick = () => { largarMic(); S = Object.assign(vazio(), c.S); $('texto').value = S.texto; base = S.texto; desenha(); scrollTo({ top: 0 }); };
+    linha.append(h, d, b);
+    caixa.appendChild(linha);
+  }
+}
+
+/* Ditado */
+const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
+let rec = null, aOuvir = false, base = '', desvio = 0, total = 0;
+const juntar = (a, b) => (a && b) ? a.replace(/\s+$/, '') + ' ' + b.replace(/^\s+/, '') : (a || b);
+
+function estadoMic(titulo, dica) {
+  $('estado').textContent = titulo;
+  if (dica !== undefined) $('dica').textContent = dica;
+  $('mic').classList.toggle('ativo', aOuvir);
+  $('mic').setAttribute('aria-label', aOuvir ? 'Parar de ditar' : 'Começar a ditar');
+}
+
+function comecarMic() {
+  if (S.exemplo) novaOcorrencia();
+  if (!Rec) {
+    estadoMic('Use o microfone do teclado', 'Este navegador não dita diretamente. Toque na caixa de texto e depois no microfone do teclado.');
+    $('texto').focus();
+    return;
+  }
+  rec = new Rec();
+  rec.lang = $('lingua').value;
+  rec.continuous = true;
+  rec.interimResults = true;
+  base = $('texto').value;
+  desvio = 0;
+  rec.onresult = e => {
+    total = e.results.length;
+    let fala = '', ant = '';
+    for (let i = desvio; i < e.results.length; i++) {
+      const u = e.results[i][0].transcript.trim();
+      if (ant && u.startsWith(ant)) fala = fala.slice(0, fala.length - ant.length) + u;
+      else fala = juntar(fala, u);
+      ant = u;
+    }
+    $('texto').value = juntar(base, fala);
+    S.texto = $('texto').value;
+    atualiza(true);
+  };
+  rec.onerror = e => {
+    if (e.error === 'no-speech' || e.error === 'aborted') return;
+    aOuvir = false;
+    const msg = (e.error === 'not-allowed' || e.error === 'service-not-allowed')
+      ? 'O microfone está bloqueado aqui. Toque na caixa de texto e use o microfone do teclado.'
+      : e.error === 'network' ? 'Sem ligação ao serviço de voz. Escreva na caixa de texto ou use o microfone do teclado.'
+      : 'O ditado parou. Toque no botão para tentar outra vez.';
+    estadoMic('Ditado indisponível', msg);
+  };
+  rec.onend = () => {
+    base = $('texto').value;
+    desvio = 0;
+    if (aOuvir) { try { rec.start(); return; } catch {} aOuvir = false; }
+    if ($('estado').textContent === 'A ouvir…') { estadoMic('Pronto para ditar', 'Confira o cartão antes de enviar.'); if (consultasMapa(S.campos).length && !S.ponto) procuraPonto(); }
+  };
+  try { rec.start(); aOuvir = true; estadoMic('A ouvir…', 'Diga o tipo, o local, a referência e o número CODU.'); }
+  catch { estadoMic('Ditado indisponível', 'Toque na caixa de texto e use o microfone do teclado.'); }
+}
+
+function pararMic() { aOuvir = false; if (rec) { try { rec.stop(); } catch {} } }
+/* Corta o ditado sem deixar a última fala cair no cartão seguinte. */
+function largarMic() { aOuvir = false; if (rec) { rec.onresult = null; try { rec.abort(); } catch {} } }
+
+function novaOcorrencia() {
+  largarMic();
+  S = vazio();
+  base = '';
+  avisoMapa = '';
+  $('texto').value = '';
+  $('feedback').textContent = '';
+  try { localStorage.removeItem('cartao.rascunho'); } catch {}
+  estadoMic('Pronto para ditar', 'Fale durante a chamada. O cartão preenche sozinho.');
+  atualiza(false);
+}
+
+/* Ligações */
+for (const [id, nome] of Object.entries(TIPOS)) {
+  const b = document.createElement('button');
+  b.type = 'button'; b.dataset.id = id; b.textContent = nome;
+  b.onclick = () => {
+    if (S.exemplo) novaOcorrencia();
+    S.tipoManual = true; S.tipo = id;
+    S.rotulo = rotuloTipo(id, sem(S.texto));
+    atualiza(false);
+  };
+  $('chips').appendChild(b);
+}
+for (const s of SETORES) {
+  const b = document.createElement('button');
+  b.type = 'button'; b.textContent = s;
+  b.onclick = () => {
+    const desmarca = sem((S.campos.setor || '').trim()) === sem(s);
+    if (desmarca) delete S.editados.setor; else S.editados.setor = true;
+    S.campos.setor = desmarca ? '' : s;
+    desenha();
+  };
+  $('setorChips').appendChild(b);
+}
+for (const [k, nome] of Object.entries(EXTRAS)) {
+  const b = document.createElement('button');
+  b.type = 'button'; b.dataset.k = k; b.textContent = nome;
+  b.onclick = () => { S.extrasManual[k] = !temExtra(k); desenha(); };
+  $('extras').appendChild(b);
+}
+for (const p of PRIOS) {
+  const b = document.createElement('button');
+  b.type = 'button'; b.dataset.p = p; b.textContent = p;
+  b.onclick = () => {
+    if (S.exemplo) novaOcorrencia();
+    const desmarca = (S.campos.prio || '').trim().toUpperCase() === p;
+    if (desmarca) delete S.editados.prio; else S.editados.prio = true;
+    S.campos.prio = desmarca ? '' : p;
+    desenha();
+  };
+  $('prioChips').appendChild(b);
+}
+for (const f of CAMPOS) $('f-' + f).addEventListener('input', e => {
+  /* Apagar o que escreveu devolve o campo ao ditado. */
+  if (e.target.value) S.editados[f] = true; else delete S.editados[f];
+  S.campos[f] = e.target.value;
+  if (f === 'local' || f === 'ref') { S.ponto = null; S.opcoes = []; avisoMapa = ''; }
+  desenha();
+});
+document.querySelector('.grelha').addEventListener('focusin', e => {
+  if (S.exemplo && e.target.matches('textarea, input')) novaOcorrencia();
+});
+$('texto').addEventListener('input', e => {
+  if (S.exemplo) { S.exemplo = false; S.inicio = null; }
+  S.texto = e.target.value;
+  if (aOuvir) { base = S.texto; desvio = total; }
+  atualiza(true);
+});
+$('perguntaArea').addEventListener('input', e => {
+  const q = sem(e.target.value.trim()), caixa = $('respostaArea');
+  caixa.textContent = '';
+  if (q.length < 2) return;
+  const itens = [...new Set(FALAS.filter(f => f.fala.includes(q)).flatMap(f => f.itens))].slice(0, 6);
+  if (!itens.length) { caixa.textContent = 'Freguesia não encontrada na tabela.'; return; }
+  for (const i of itens) {
+    const d = document.createElement('div');
+    d.className = 'resposta';
+    d.dataset.nossa = i.area === NOSSA ? 'sim' : 'nao';
+    d.textContent = (i.area === NOSSA ? 'Sim' : 'Não, é de ' + CORPOS[i.area]) + ' · ' + i.nome + ' · ' + kmTexto(i.km);
+    caixa.appendChild(d);
+  }
+});
+$('bombeiro').addEventListener('input', () => {
+  const v = $('bombeiro').value.trim(), c = /^h?\d{3}$/i.test(v) && exatoB(v);
+  if (c) juntaBombeiro(c.num); else procuraBombeiro();
+});
+$('bombeiro').addEventListener('change', () => {
+  const c = exatoB($('bombeiro').value);
+  if (c) juntaBombeiro(c.num);
+});
+$('maisBombeiro').onclick = () => { S.maisUm = true; desenha(); $('bombeiro').focus(); };
+$('bombeiro').addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  const v = $('bombeiro').value.trim(), achados = procuraBombeiro();
+  if (achados.length) juntaBombeiro(achados[0].num);
+  else if (/^\d+$/.test(v)) juntaBombeiro(limpaNum(v));
+});
+$('btnSemNumero').onclick = () => { S.semManual = !semNumero(); desenha(); };
+$('f-valor').addEventListener('input', e => { S.valorManual = e.target.value.trim(); desenha(); });
+$('f-espera').addEventListener('input', e => { S.esperaH = e.target.value.trim(); desenha(); });
+$('f-o2h').addEventListener('input', e => { S.o2H = e.target.value.trim(); desenha(); });
+$('valorTabela').onclick = () => { S.valorManual = null; $('f-valor').blur(); desenha(); };
+$('formPreco').addEventListener('submit', e => {
+  e.preventDefault();
+  const nome = $('p-nome').value.trim(), valor = lerValor($('p-valor').value);
+  if (valor === null) { $('msgPrecos').textContent = 'Escreva o valor em euros, por exemplo 25.'; return; }
+  poePreco(nome, valor);
+  guardaPrecos();
+  $('msgPrecos').textContent = nome + ' guardado.';
+  e.target.reset();
+});
+$('btnImportarPrecos').onclick = importaPrecos;
+$('mic').onclick = () => {
+  if (aOuvir) { pararMic(); return; }
+  comecarMic();
+};
+$('nova').onclick = novaOcorrencia;
+$('procurar').onclick = procuraPonto;
+$('lingua').onchange = e => gravar('cartao.lingua', e.target.value);
+$('lingua').value = ler('cartao.lingua', 'pt-PT');
+
+const faltas = () => { const l = []; if (!S.campos.local && !S.campos.ref) l.push('o local'); if (!S.tipo) l.push('o tipo'); return l.length ? ' Falta ' + l.join(' e ') + '.' : ''; };
+$('wa').onclick = () => { guardaRecente(); $('feedback').textContent = 'WhatsApp aberto. Escolha o grupo e confirme o envio lá.' + faltas(); };
+$('sms').onclick = () => { guardaRecente(); $('feedback').textContent = 'Se a app de mensagens não abriu, use Copiar.' + faltas(); };
+$('copiar').onclick = async () => {
+  guardaRecente();
+  try { await navigator.clipboard.writeText(mensagem('sms')); $('feedback').textContent = 'Cartão copiado.' + faltas(); }
+  catch { $('feedback').textContent = 'Não foi possível copiar. Abra Ver a mensagem e selecione o texto.'; document.querySelector('details').open = true; }
+};
+if (navigator.share && window.top === window.self) {
+  $('partilhar').hidden = false;
+  $('partilhar').onclick = async () => { guardaRecente(); try { await navigator.share({ text: mensagem('sms') }); } catch {} };
+}
+
+setInterval(() => { $('relogio').textContent = new Date().toLocaleTimeString('pt-PT'); }, 1000);
+$('relogio').textContent = new Date().toLocaleTimeString('pt-PT');
+
+const rascunho = ler('cartao.rascunho', null);
+if (rascunho && (rascunho.texto || Object.keys(rascunho.editados || {}).length)) {
+  S = Object.assign(vazio(), rascunho);
+  $('texto').value = S.texto;
+  base = S.texto;
+  atualiza(false);
+} else {
+  S.exemplo = true;
+  S.texto = EXEMPLO;
+  S.inicio = '14:32';
+  $('texto').value = EXEMPLO;
+  atualiza(false);
+}
+desenhaRecentes();
+desenhaPrecos();
+
+if (COFRE) {
+  /* Limpa o que versões anteriores deixaram guardado no aparelho. */
+  for (const k of ['aberto', 'contactos', 'precos']) { try { localStorage.removeItem('cartao.' + k); } catch {} }
+  $('linhaBloquear').hidden = false;
+  if (!sessao.ler('cartao.aberto', false)) {
+    document.body.classList.add('fechado');
+    $('cofre').hidden = false;
+  }
+  $('cofre').addEventListener('submit', async e => {
+    e.preventDefault();
+    $('cofreMsg').textContent = 'A abrir…';
+    try {
+      const d = await abreCofre($('cofreConta').value, $('cofreSenha').value);
+      contactos = d.contactos; precos = d.precos;
+      sessao.gravar('cartao.contactos', contactos); sessao.gravar('cartao.precos', precos); sessao.gravar('cartao.aberto', true);
+      $('cofreSenha').value = ''; $('cofreMsg').textContent = '';
+      $('cofre').hidden = true;
+      document.body.classList.remove('fechado');
+      desenhaPrecos(); desenha();
+    } catch (err) {
+      $('cofreMsg').textContent = err && err.name === 'OperationError' ? 'Conta ou senha errada.' : 'Não foi possível abrir aqui. Abra no site próprio.';
+    }
+  });
+  $('btnBloquear').onclick = () => {
+    try { sessionStorage.clear(); } catch {}
+    for (const k of ['rascunho', 'recentes']) { try { localStorage.removeItem('cartao.' + k); } catch {} }
+    location.reload();
+  };
+}
+</script>
+</body>
+</html>
