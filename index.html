@@ -1233,8 +1233,6 @@ $('texto').addEventListener('input', e => {
   if (aOuvir) { base = S.texto; desvio = total; }
   atualiza(true);
 });
-$('lingua').value = ler('cartao.lingua', 'pt-BR');
-$('lingua').addEventListener('change', e => gravar('cartao.lingua', e.target.value));
 $('perguntaArea').addEventListener('input', e => {
   const q = sem(e.target.value.trim()), caixa = $('respostaArea');
   caixa.textContent = '';
@@ -1287,7 +1285,7 @@ $('mic').onclick = () => {
 $('nova').onclick = novaOcorrencia;
 $('procurar').onclick = procuraPonto;
 $('lingua').onchange = e => gravar('cartao.lingua', e.target.value);
-$('lingua').value = ler('cartao.lingua', 'pt-PT');
+$('lingua').value = ler('cartao.lingua', 'pt-BR');
 
 const faltas = () => { const l = []; if (!S.campos.local && !S.campos.ref) l.push('o local'); if (!S.tipo) l.push('o tipo'); return l.length ? ' Falta ' + l.join(' e ') + '.' : ''; };
 $('wa').onclick = () => { guardaRecente(); $('feedback').textContent = 'WhatsApp aberto. Escolha o grupo e confirme o envio lá.' + faltas(); };
