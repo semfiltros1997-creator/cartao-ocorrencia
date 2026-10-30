@@ -401,6 +401,8 @@ function cues(tipo) {
     { f: 'local', solo: 1, canon: 1, re: new RegExp('^(?:emergencias?(?:\\s+medicas?)?[\\s,:-]+)?(' + LUGAR_ALT + ')\\b(?![\\s,]*\\d{1,2}(?![\\d:h]))', 'g') },
     { f: 'sexo', re: /\b([mf])\s?(\d{1,3})\b/g },
     { f: 'meio', drop: 1, re: /\b(?:vai|vao|sai|segue)\s+(?:[oa]\s+)?(barcelos|barcelinhos|viatodos)[\s,]*(\d{1,2}|um|dois|tres|quatro|cinco|seis|sete|oito|nove)\b/g },
+    /* "Barcelos 3" sozinho, sem "vai": só um algarismo e nunca dentro de uma morada. */
+    { f: 'meio', drop: 1, not: /\b(?:rua|avenida|travessa|largo|praceta|estrada|em|n[oa]|para|de|do|da)\s$/, re: /\b(barcelos|barcelinhos|viatodos)[\s,]+([1-9]|um|dois|tres|quatro|cinco|seis|sete|oito|nove)\b(?![:h\d])/g },
     { f: 'local', solo: 1, canon: 1, re: new RegExp('\\b(?:emergencias?(?:\\s+medicas?)?|acidentes?|incendios?|ocorrencias?|servicos?)\\s+(?:para|em|n[oa])\\s+(' + LUGAR_ALT + ')\\b', 'g') },
     { f: 'nome', drop: 1, re: /\b(?:nome d[aeo]s?\s+(?:utente|doente|vitima|paciente|senhora?|pessoa)(?:\s+e)?|nome\s+e|chama-se|se chama)\b[\s:.,-]*(?:[oa]\s+)?/g },
     { f: 'codu', drop: 1, re: /\b(?:numero\s+(?:d[oea]\s+)?)?(?:cod[uo]s?|kod[uo]s?|cody|codigo|fichas?)\b[\s:.,-]*(?:e\s+)?(?:o\s+)?(?:numero\s+|n\.?\s+)?/g },
@@ -421,7 +423,7 @@ function cues(tipo) {
     { f: 'local', not: naoApos, re: /(?:\b(?:n[oa]s?|em|pela?)\s+)?\b(rua|r(?=\.?\s+[\da-z])|avenida|av|travessa|largo|praceta|pct|praca|campo,?\s+\d+ de \w+|campo d[aeo]s?|estrada nacional|estrada|en\s?\d+|alameda|caminho|calcada|beco|urbanizacao|bairro|lugar|quinta|zona industrial|parque industrial)\b/g },
     { f: 'local', solo: 1, canon: 1, re: new RegExp('\\b(?:em|n[oa]s?|freguesia d[eoa]|freguesia)\\s+(' + LUGAR_ALT + ')\\b', 'g') },
     { f: 'ref', drop: 1, re: /\b(?:ponto de referencia|referencia)\b[\s:.-]*(?:e\s+|fica\s+)?/g },
-    { f: 'ref', re: /\b(ao lado d[eoa]s?|ao pe d[eoa]s?|perto d[eoa]s?|perto|junto a[os]?|junto d[eoa]s?|junto|em frente a[os]?|em frente d[eoa]s?|em frente|proxim[oa] d[eoa]s?|proxim[oa] a[os]?|atras d[eoa]s?|depois d[eoa]s?|a seguir a[os]?|antes d[eoa]s?|na esquina|entre [oa]s?)\b/g },
+    { f: 'ref', re: /\b(ao lado d[eoa]s?|ao pe d[eoa]s?|perto d[eoa]s?|perto|junto a[os]?|junto d[eoa]s?|junto|em frente a[os]?|em frente d[eoa]s?|em frente|proxim[oa] d[eoa]s?|proxim[oa] a[os]?|proxim[oa]|atras d[eoa]s?|depois d[eoa]s?|a seguir a[os]?|antes d[eoa]s?|na esquina|entre [oa]s?)\b/g },
     { f: 'ref', not: naoApos, re: /\b(escola|colegio|creche|infantario|lar(?:\s+de\s+idosos)?)\b/g },
     /* Fora do transporte, "para Barcelos" é o local da ocorrência, não um destino. */
     { f: 'destino', re: new RegExp('\\b(?:para|ate\\s+a[oa]?s?|ate)\\s+(?:(?:fazer|realizar|realizacao de)\\s+)?(?:[oa]s?\\s+|uma?\\s+)?(' + (transp ? 'hospital|centro de saude|clinica|casa|domicilio|lar|consulta|exames?|hemodialise|maternidade|braga|barcelos|famalicao|porto|guimaraes|esposende|viana|povoa' : 'hospital|centro de saude|clinica|maternidade') + ')\\b', 'g') },
@@ -504,11 +506,26 @@ const VOZ = [
   [/\b[kc][ou]duros?\b/gi, 'CODU'],
   [/\bnelson ver[ií]ssimo\b/gi, 'Tamel São Veríssimo'],
   [/\bo que [eé] fish\b/gi, 'dispneia'],
+  [/\b(?:mesmo )?esse m[eé]dico\b/gi, 'emergência médica'],
+  [/\balij[oó](?![a-zà-ú])/gi, 'Lijó'],
+  [/\bconde\s+s?pin[eé]ia\b/gi, 'com dispneia'],
+  [/\b[kc]od[oô]r\b/gi, 'CODU'],
+  [/\bcon?dis?pi?n[eé]ia\b/gi, 'com dispneia'],
+  [/\bdispin[eé]ia\b/gi, 'dispneia'],
+  [/\brua do combatentes\b/gi, 'Rua dos Combatentes'],
+  [/\bcombatentes ultramar\b/gi, 'Combatentes do Ultramar'],
 ];
 const corrigeVoz = s => VOZ.reduce((v, [re, certo]) => v.replace(re, certo), s);
+/* No telemóvel o ditado repete às vezes a mesma frase seguida: fica só uma. */
+function semRepetir(s) {
+  const re = /(^|\s)((?:[^\s]+\s+){1,11}[^\s]+)\s+\2(?=\s|$)/giu;
+  let v = s, p;
+  do { p = v; v = v.replace(re, '$1$2'); } while (v !== p);
+  return v;
+}
 
 function parseOcorrencia(texto) {
-  const t = corrigeVoz(texto).replace(/\s*\n+\s*/g, ', ').replace(/\s+/g, ' ').trim();
+  const t = semRepetir(corrigeVoz(texto).replace(/\s*\n+\s*/g, ', ').replace(/\s+/g, ' ').trim());
   const n = sem(t);
   const tipo = detetaTipo(n);
   const achados = [];
@@ -551,6 +568,10 @@ function parseOcorrencia(texto) {
       if (f === 'contacto' && d) r.contacto = formataTelefone(d);
       lido = f2;
       sobra(f2, Math.max(fim, f2));
+    } else if (f === 'ruido') {
+      /* "Rua X, ok, 1210": o número da porta vem depois da conversa. */
+      const ant = hits[i - 1], num = /^[\s,]*(\d{1,5})\b/.exec(t.slice(h.fim, fim));
+      if (num && ant && ant.c.f === 'local' && !ant.c.solo && ruas.length) ruas[ruas.length - 1] += ', nº ' + num[1];
     } else if (f === 'nome') {
       const v = t.slice(h.val, fim).split(/[,.?!]|\s(?:ela|ele|que|tem|vai|est[aá]|para|nasceu|idade|anos|mora)\b/i)[0];
       r.nome = titulo(limpa(v).split(' ').slice(0, 5).join(' '));
@@ -635,7 +656,7 @@ function parseOcorrencia(texto) {
     if (ant && p.ini <= ant.fim + 1) { ant.s = ant.s.trimEnd() + ' ' + p.s; ant.fim = p.fim; }
     else blocos.push(Object.assign({}, p));
   }
-  const frases = blocos.map(p => limpa(p.s).replace(/^uma?\s+(?=\S)/i, '')).filter(v => v.length >= 3);
+  const frases = blocos.map(p => limpa(p.s).replace(/^uma?\s+(?=\S)/i, '')).filter((v, i, l) => v.length >= 3 && l.findIndex(o => sem(o) === sem(v)) === i);
   const desc = frases.join(', ');
   /* Nos transportes não há circunstâncias: o motivo vem do tipo de serviço. */
   r.desc = transp ? '' : desc.charAt(0).toUpperCase() + desc.slice(1);
