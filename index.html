@@ -436,14 +436,16 @@ function cues(tipo) {
   ];
   if (transp) {
     lista.push({ f: 'setor', solo: 1, re: new RegExp('\\b(?:(?:esta\\s+)?n[oa]\\s+|d[oa]\\s+|servico de\\s+)?(' + SETORES.map(sem).join('|') + ')\\b', 'g') });
-    lista.push({ f: 'extraNao', drop: 1, re: /\b(?:sem|nao tem|nao leva|nao faz|nao precisa(?: de)?|nao vai(?: com)?)\s+(?:[oa]\s+)?(acompanhantes?|oxigenio|o\s?2|cadeira de rodas|rodas)\b|\b(acompanhantes?|oxigenio|o\s?2|rodas)\s+nao\b/g });
+    lista.push({ f: 'extraNao', drop: 1, re: /\b(?:sem|nao tem|nao leva|nao faz|nao precisa(?: de)?|nao vai(?: com)?)\s+(?:[oa]\s+)?(acompanhantes?|oxigenio|o\s?2|cadeira de rodas|rodas|acamad[oa]|deitad[oa]|sentad[oa])\b|\b(acompanhantes?|oxigenio|o\s?2|rodas)\s+nao\b/g });
+    lista.push({ f: 'extra', id: 'deitado', drop: 1, re: /\b(?:deitad[oa]|acamad[oa])\b/g });
+    lista.push({ f: 'extra', id: 'sentado', drop: 1, re: /\bsentad[oa]\b/g });
     lista.push({ f: 'extra', id: 'acomp', drop: 1, re: /\b(?:(?:com|c\/)\s*)?acompanhantes?\b/g });
     lista.push({ f: 'extra', id: 'o2', drop: 1, re: /\b(?:com|c\/)\s*(?:oxigenio|o\s?(?:2|dois))\b|\b(?:oxigenio|o2)\s+sim\b/g });
     lista.push({ f: 'extra', id: 'rodas', drop: 1, re: /\b(?:(?:com|c\/|em)\s*)?(?:cadeira de rodas|rodas)\b/g });
     lista.push({ f: 'local', re: /\b(?:d[oa]s?|de|desde)\s+(?:[oa]\s+)?(hospital|urgencia|pisos?|centro de saude|clinica|lar|casa|domicilio|maternidade)\b/g });
     lista.push({ f: 'local', drop: 1, origem: 1, re: /\b(?:origem|desde|recolher?(?:\s+(?:n[oa]|em))?|buscar(?:\s+(?:a[oa]?|n[oa]))?)\b[\s:.-]*/g });
     lista.push({ f: 'local', drop: 1, origem: 1, re: /\bd[ae]\s+(?=(?:rua|avenida|travessa|largo)\b)/g });
-    lista.push({ f: 'local', solo: 1, canon: 1, not: /\b(?:hospital|clinica|saude|maternidade|bombeiros|rua|avenida|travessa|largo|bairro|lugar|campo|estrada)\s$/, re: new RegExp('\\b(?:de|desde)\\s+(' + LUGAR_ALT + ')\\b', 'g') });
+    lista.push({ f: 'local', solo: 1, canon: 1, not: /\b(?:hospital|clinica|saude|maternidade|bombeiros|rua|avenida|travessa|largo|bairro|lugar|campo|estrada)\s$/, re: new RegExp('\\b(?:de|desde)\\s+(' + LUGAR_ALT.split('|').filter(l => !VAGOS.has(l)).join('|') + ')\\b', 'g') });
   }
   /* No papel e na chamada o número CODU pode vir sozinho, com ou sem espaços entre os algarismos. */
   if (tipo === 'emergencia') lista.push({ f: 'coduNu', re: /\b(\d(?:[\s.]?\d){6})\b(?!\s?\d)/g });
@@ -480,13 +482,15 @@ function formataTelefone(d) {
   return d.length === 9 ? d.slice(0, 3) + ' ' + d.slice(3, 6) + ' ' + d.slice(6) : d;
 }
 
-const LIMPA_FIM = /[\s,;.:?!-]+$|\s+(?:e|é|há|com|que|a|o|as|os|de|do|da|dos|das|no|na|nos|nas|em|para|numa?|uma?|ao|tem|esta|fica)$/i;
+const LIMPA_FIM = /[\s,;.:?!-]+$|\s+(?:também|e|é|há|com|que|a|o|as|os|de|do|da|dos|das|no|na|nos|nas|em|para|numa?|uma?|ao|tem|esta|fica)$/i;
 function limpa(v) {
   let p;
   do { p = v; v = v.replace(LIMPA_FIM, ''); } while (v !== p);
   return v.replace(/^[\s,;.:-]+/, '').replace(/^(?:e|que)\s+/i, '').trim();
 }
 
+/* "Transferência para Braga" é o hospital dessa cidade; o Porto tem vários, por isso fica só o nome. */
+const CIDADES = { braga: 'Braga', barcelos: 'Barcelos', famalicao: 'Famalicão', porto: 'Porto', guimaraes: 'Guimarães', esposende: 'Esposende', viana: 'Viana do Castelo', povoa: 'Póvoa de Varzim' };
 const LIGA = new Set(['de', 'do', 'da', 'dos', 'das', 'e', 'a', 'o', 'no', 'na', 'em']);
 function titulo(s) {
   return s.split(' ').map((p, i) => (i && LIGA.has(p.toLowerCase())) ? p.toLowerCase() : p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
@@ -518,6 +522,7 @@ const VOZ = [
   [/\bcon?dis?pi?n[eé]ia\b/gi, 'com dispneia'],
   [/\bdispin[eé]ia\b/gi, 'dispneia'],
   [/\bparrinha\b/gi, 'Esparrinha'],
+  [/\ba camada\b/gi, 'acamada'],
   [/\bfalta para\b/gi, 'alta para'],
   [/\b(?:av(?:enida)?\.?\s+)?(?:d?os\s+)?combatentes\s+(?:da\s+)?grande\s+guerra\b/gi, 'Avenida dos Combatentes da Grande Guerra'],
   [/(?<!\b(?:rua|travessa|lugar)\s+d[eo]s?\s)\bpalhais\b/gi, 'palidez'],
@@ -626,8 +631,8 @@ function parseOcorrencia(texto) {
       r.setor = SETORES.find(s => sem(s) === h.m[1]);
       sobra(h.fim, fim);
     } else if (f === 'extra' || f === 'extraNao') {
-      if (f === 'extra') r.extras[h.c.id] = true;
-      else delete r.extras[/acomp/.test(h.m[0]) ? 'acomp' : /rodas/.test(h.m[0]) ? 'rodas' : 'o2'];
+      if (f === 'extra') { r.extras[h.c.id] = true; if (h.c.id === 'deitado') delete r.extras.sentado; if (h.c.id === 'sentado') delete r.extras.deitado; }
+      else delete r.extras[/acomp/.test(h.m[0]) ? 'acomp' : /rodas/.test(h.m[0]) ? 'rodas' : /acamad|deitad/.test(h.m[0]) ? 'deitado' : /sentad/.test(h.m[0]) ? 'sentado' : 'o2'];
       sobra(h.fim, fim);
     } else if (f === 'prio') {
       r.prio = 'P' + (h.m[1] || DIG[h.m[2]]);
@@ -671,7 +676,8 @@ function parseOcorrencia(texto) {
       const v = limpa(t.slice(h.val, fim));
       if (v) refs.push(v);
     } else if (f === 'destino') {
-      const v = morada(limpa(t.slice(h.val, fim)));
+      const cidade = CIDADES[h.m[1]];
+      const v = cidade ? (tipo === 'transferencia' && cidade !== 'Porto' ? 'Hospital de ' + cidade : cidade) : morada(limpa(t.slice(h.val, fim)));
       if (v) destinos.push(v);
       viuDestino = true;
     } else if (f === 'desc') {
@@ -868,7 +874,7 @@ const particular = () => {
 };
 
 /* Condições do transporte: só aparecem na mensagem quando são positivas. */
-const EXTRAS = { acomp: 'c/ acompanhante', o2: 'c/ O₂', rodas: 'c/ rodas' };
+const EXTRAS = { acomp: 'c/ acompanhante', o2: 'c/ O₂', rodas: 'c/ rodas', sentado: 'Sentada', deitado: 'Deitada' };
 const temExtra = k => k in S.extrasManual ? S.extrasManual[k] : !!S.extrasDito[k];
 const comExtras = () => (S.tipo === 'transporte' || S.tipo === 'transferencia') && S.rotulo !== 'Transporte de cadáver';
 const textoExtras = () => comExtras() ? Object.keys(EXTRAS).filter(temExtra).map(k => EXTRAS[k]).join(' · ') : '';
@@ -1133,13 +1139,13 @@ function mensagem(modo) {
   const linhas = [modo === 'wa' ? '*' + nome + '*' : nome];
   const add = (r, v) => { if (v) linhas.push(r + ': ' + v); };
   if (c.freg) linhas.push(c.freg + (c.hora ? ' · ' + c.hora : '')); else add('Hora', c.hora);
-  add(moradaDestino() ? 'Destino' : 'Local', c.rua);
+  if (semCodu()) add('Utente', c.nome);
   if (comExtras()) add('Serviço', (c.setor || '').trim());
+  add(moradaDestino() ? 'Destino' : 'Local', c.rua);
   add('Referência', c.ref);
   add('Destino', c.destino);
   if (textoExtras()) linhas.push(textoExtras());
-  if (semCodu()) add('Utente', c.nome);
-  add(semCodu() ? 'Motivo' : 'Circunstâncias', c.desc);
+  if (!semCodu()) add('Circunstâncias', c.desc); else if (S.editados.desc) add('Motivo', c.desc);
   add('Prioridade', (c.prio || '').trim().toUpperCase()); if (!semCodu()) add('CODU', c.codu);
   const cob = cobranca();
   if (cob && cob.estado === 'cobrar') add('Cobrar', euros(cob.valor) || 'valor por confirmar');
@@ -1324,7 +1330,12 @@ for (const s of SETORES) {
 for (const [k, nome] of Object.entries(EXTRAS)) {
   const b = document.createElement('button');
   b.type = 'button'; b.dataset.k = k; b.textContent = nome;
-  b.onclick = () => { S.extrasManual[k] = !temExtra(k); desenha(); };
+  b.onclick = () => {
+    S.extrasManual[k] = !temExtra(k);
+    if (S.extrasManual[k] && k === 'sentado') S.extrasManual.deitado = false;
+    if (S.extrasManual[k] && k === 'deitado') S.extrasManual.sentado = false;
+    desenha();
+  };
   $('extras').appendChild(b);
 }
 for (const p of PRIOS) {
