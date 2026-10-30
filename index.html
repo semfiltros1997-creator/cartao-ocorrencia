@@ -208,7 +208,7 @@ footer { color: var(--muted); font-size: 13px; max-width: 72ch; }
         <div class="numeros">
           <div class="campo" data-f="hora"><div class="topo-campo"><label class="rotulo" for="f-hora">Hora</label></div><input class="num" id="f-hora" inputmode="numeric" maxlength="5" placeholder="00:00" autocomplete="off"></div>
         </div>
-        <div class="campo largo" data-f="rua"><div class="topo-campo"><label class="rotulo" for="f-rua">Local: rua e número</label></div><input id="f-rua" autocomplete="off"></div>
+        <div class="campo largo" data-f="rua"><div class="topo-campo"><label class="rotulo" for="f-rua">Local</label></div><input id="f-rua" autocomplete="off" placeholder="Rua e número"></div>
         <div class="campo largo" data-f="freg"><div class="topo-campo"><label class="rotulo" for="f-freg">Freguesia ou localidade</label></div><input id="f-freg" list="freguesias" autocomplete="off"><datalist id="freguesias"></datalist></div>
         <div id="areaCartao" aria-live="polite" hidden></div>
         <div class="campo largo" data-f="ref"><div class="topo-campo"><label class="rotulo" for="f-ref">Ponto de referência</label></div><input id="f-ref" autocomplete="off" placeholder="Perto de, ao lado de"></div>
@@ -357,7 +357,7 @@ const TIPOS = { incendio: 'Incêndio', acidente: 'Acidente', emergencia: 'Emerg�
 function detetaTipo(n) {
   const fortes = [
     ['transferencia', /\btransferencias?\b/],
-    ['transporte', /\btransportes?\b|\bhemodialise\b|\bconsulta\b|\bexames?\b|\bdomicilio\b|\bpara casa\b|\balta medica\b|\baltas?\s+d[ao]\b|\b(?:vai de|teve|de) alta\b|\bcadaver(?:es)?\b|\bobito\b/],
+    ['transporte', /\btransportes?\b|\bhemodialise\b|\bconsulta\b|\bexames?\b|\bdomicilio\b|\bpara casa\b|\balta medica\b|\balta para\b|\baltas?\s+d[ao]\b|\b(?:vai de|teve|de) alta\b|\bcadaver(?:es)?\b|\bobito\b/],
     ['incendio', /\bincendios?\b|\bfogo\b|\bchamas\b|\ba arder\b/],
     ['acidente', /\bacidentes?\b|\bcolisao\b|\bdespist\w+\b|\bcapotamento\b|\batropelamento\b/],
     ['outro', /\binundac\w+\b|\bcheia\b|\bqueda de arvore\b|\babertura de porta\b|\bsalvamento\b|\bdesencarceramento\b|\blimpeza de via\b|\babastecimento de agua\b|\bfuga de gas\b/],
@@ -388,7 +388,7 @@ function rotuloTipo(id, n) {
     if (/\bconsultas?\b/.test(n)) return 'Transporte para consulta';
     if (/\baltas?\b.*\burgencia\b/.test(n)) return 'Alta da urgência';
     if (/\baltas?\b.*\bpisos?\b/.test(n)) return 'Alta dos pisos';
-    if (/\bdomicilio\b|\bpara casa\b|\balta medica\b|\baltas?\s+d[ao]\b|\b(?:vai de|teve|de) alta\b/.test(n)) return 'Alta médica / domicílio';
+    if (/\bdomicilio\b|\bpara casa\b|\balta medica\b|\balta para\b|\baltas?\s+d[ao]\b|\b(?:vai de|teve|de) alta\b/.test(n)) return 'Alta médica / domicílio';
   }
   return id ? TIPOS[id] : '';
 }
@@ -398,7 +398,7 @@ function cues(tipo) {
   const naoApos = /\b(?:d[oa]|de)\s$/;
   const lista = [
     /* Conversa da chamada: marca o fim do que vinha antes e nunca entra no cartão. */
-    { f: 'ruido', drop: 1, re: /\b(?:ok|ta (?:bem|bom|ok)|esta (?:bem|bom|ok)|sim|certo|pronto|obrigad[oa]|boa tarde|boa noite|bom dia|temos disponibilidade|nao temos disponibilidade|qual (?:e )?a morada|(?:e )?de voces|no local|(?:a )?autoridade|(?:e )?pago no momento|paga no momento|tem (?:que|de) pagar|vai pagar|(?:sao )?\d+ euros)\b/g },
+    { f: 'ruido', drop: 1, re: /\b(?:ok|ta (?:bem|bom|ok)|esta (?:bem|bom|ok)|sim|certo|pronto|obrigad[oa]|boa tarde|boa noite|bom dia|temos disponibilidade|nao temos disponibilidade|qual (?:e )?a morada|(?:e )?de voces|no local|(?:a )?autoridade|(?:de )?uma coisa|logo que possivel|vai uma ambulancia|(?:e )?pago no momento|paga no momento|tem (?:que|de) pagar|vai pagar|(?:sao )?\d+ euros)\b/g },
     /* Como no cartão em papel: "Lijó 14:31 ...", com a freguesia logo no início e sem "em". */
     { f: 'local', solo: 1, canon: 1, re: new RegExp('^(?:emergencias?(?:\\s+medicas?)?[\\s,:-]+)?(' + LUGAR_ALT + ')\\b(?![\\s,]*\\d{1,2}(?![\\d:h]))', 'g') },
     { f: 'sexo', re: /\b([mf])\s?(\d{1,3})\b/g },
@@ -432,13 +432,13 @@ function cues(tipo) {
     { f: 'destino', drop: 1, re: /\bdestino\b[\s:.-]*(?:e\s+|para\s+)?/g },
     { f: 'desc', drop: 1, re: /\b(?:o que se passa|situacao|motivo|sintomas?)\b[\s:.-]*(?:e\s+)?/g },
     { f: 'desc', not: naoApos, re: /\b((?:(?:dois|duas|tres|quatro|cinco|seis|\d+)\s+(?!masculino|feminino|homem|mulher|senhora?))?(?:queda de arvore|abertura de porta|fuga de gas|limpeza de via|abastecimento de agua|inundac\w+|cheia|salvamento|desencarceramento|colisao|despiste|capotamento|atropelamento|masculino|feminino|senhora?|sr\.?|sra\.?|homem|mulher|rapaz|rapariga|menino|menina|crianca|bebe|idos[oa]|doente|utente|vitimas?|pessoas?|jovem|feridos?|caiu|queda|dor toracica|dores|dor|inconsciente|tce|hiperglicemia|hipoglicemia|dispneia|astenia|palidez|sudorese|cianose|taquicardia|hipotensao|hipertensao|epistaxe|ansiedade|vertigens?|diarreia|nauseas?|prostrad[oa]|confus[oa]|agitad[oa]|alcooliz\w+|etiliz\w+|overdose|afogamento|engasg\w+|parto|gravida|enfarte|eam|desmaiou|sangue|sangra|hemorragia|fumo|chamas|nao respira|mal estar|falta de ar|dificuldade\w* respirat\w+|vomitos?|tonturas?|febre|desorientad[oa]|sincope|avc|pcr|paragem|fratura|trauma\w*|queimad\w+|intoxica\w+|convuls\w+|a arder|carros?|viaturas?|veiculos?|ligeiros?|pesados?|motas?))\b/g },
-    { f: 'tipo', drop: 1, re: /\b(?:incendios?(?:\s+(?:florestal|urbano|industrial|em mato|de mato|em habitacao|em casa|em veiculo|de veiculo|numa habitacao))?|fogo|acidentes?(?:\s+de viacao)?|emergencias?(?:\s+medicas?)?|transferencias?(?:\s+medicalizadas?)?|recolha de cadaver(?:es)?|transportes? de cadaver(?:es)?|cadaver(?:es)?|transportes?|alta medica|altas?(?=\s+d[ao]\b))\b/g },
+    { f: 'tipo', drop: 1, re: /\b(?:incendios?(?:\s+(?:florestal|urbano|industrial|em mato|de mato|em habitacao|em casa|em veiculo|de veiculo|numa habitacao))?|fogo|acidentes?(?:\s+de viacao)?|emergencias?(?:\s+medicas?)?|transferencias?(?:\s+medicalizadas?)?|recolha de cadaver(?:es)?|transportes? de cadaver(?:es)?|cadaver(?:es)?|transportes?|alta medica|alta(?=\s+para\b)|altas?(?=\s+d[ao]\b))\b/g },
   ];
   if (transp) {
     lista.push({ f: 'setor', solo: 1, re: new RegExp('\\b(?:(?:esta\\s+)?n[oa]\\s+|d[oa]\\s+|servico de\\s+)?(' + SETORES.map(sem).join('|') + ')\\b', 'g') });
-    lista.push({ f: 'extraNao', drop: 1, re: /\b(?:sem|nao tem|nao leva|nao precisa(?: de)?|nao vai(?: com)?)\s+(?:[oa]\s+)?(?:acompanhantes?|oxigenio|o\s?2|cadeira de rodas|rodas)\b/g });
+    lista.push({ f: 'extraNao', drop: 1, re: /\b(?:sem|nao tem|nao leva|nao faz|nao precisa(?: de)?|nao vai(?: com)?)\s+(?:[oa]\s+)?(acompanhantes?|oxigenio|o\s?2|cadeira de rodas|rodas)\b|\b(acompanhantes?|oxigenio|o\s?2|rodas)\s+nao\b/g });
     lista.push({ f: 'extra', id: 'acomp', drop: 1, re: /\b(?:(?:com|c\/)\s*)?acompanhantes?\b/g });
-    lista.push({ f: 'extra', id: 'o2', drop: 1, re: /\b(?:(?:com|c\/)\s*)?(?:oxigenio|o2)\b|\b(?:com|c\/)\s*o\s?(?:2|dois)\b/g });
+    lista.push({ f: 'extra', id: 'o2', drop: 1, re: /\b(?:com|c\/)\s*(?:oxigenio|o\s?(?:2|dois))\b|\b(?:oxigenio|o2)\s+sim\b/g });
     lista.push({ f: 'extra', id: 'rodas', drop: 1, re: /\b(?:(?:com|c\/|em)\s*)?(?:cadeira de rodas|rodas)\b/g });
     lista.push({ f: 'local', re: /\b(?:d[oa]s?|de|desde)\s+(?:[oa]\s+)?(hospital|urgencia|pisos?|centro de saude|clinica|lar|casa|domicilio|maternidade)\b/g });
     lista.push({ f: 'local', drop: 1, origem: 1, re: /\b(?:origem|desde|recolher?(?:\s+(?:n[oa]|em))?|buscar(?:\s+(?:a[oa]?|n[oa]))?)\b[\s:.-]*/g });
@@ -518,6 +518,7 @@ const VOZ = [
   [/\bcon?dis?pi?n[eé]ia\b/gi, 'com dispneia'],
   [/\bdispin[eé]ia\b/gi, 'dispneia'],
   [/\bparrinha\b/gi, 'Esparrinha'],
+  [/\bfalta para\b/gi, 'alta para'],
   [/\b(?:av(?:enida)?\.?\s+)?(?:d?os\s+)?combatentes\s+(?:da\s+)?grande\s+guerra\b/gi, 'Avenida dos Combatentes da Grande Guerra'],
   [/(?<!\b(?:rua|travessa|lugar)\s+d[eo]s?\s)\bpalhais\b/gi, 'palidez'],
   [/\brua do combatentes\b/gi, 'Rua dos Combatentes'],
@@ -588,7 +589,7 @@ function parseOcorrencia(texto) {
     ate = h.fim;
   }
 
-  const r = { tipo, rotulo: rotuloTipo(tipo, n), local: '', ref: '', destino: '', desc: '', codu: '', sado: '', contacto: '', nome: '', hora: '', bombeiros: [], particular: false, quem: '', semNumero: false, hospital: false, prio: '', extras: {}, setor: '', meio: '' };
+  const r = { tipo, rotulo: rotuloTipo(tipo, n), local: '', ref: '', destino: '', desc: '', codu: '', sado: '', contacto: '', nome: '', hora: '', bombeiros: [], particular: false, quem: '', semNumero: false, hospital: false, prio: '', extras: {}, setor: '', meio: '', casa: false };
   const ruas = [], fregs = [], refs = [], destinos = [], partes = [];
   const sobra = (ini, fim) => { if (fim > ini) partes.push({ ini, fim, s: t.slice(ini, fim), solto: 1 }); };
   const transp = tipo === 'transporte' || tipo === 'transferencia';
@@ -626,6 +627,7 @@ function parseOcorrencia(texto) {
       sobra(h.fim, fim);
     } else if (f === 'extra' || f === 'extraNao') {
       if (f === 'extra') r.extras[h.c.id] = true;
+      else delete r.extras[/acomp/.test(h.m[0]) ? 'acomp' : /rodas/.test(h.m[0]) ? 'rodas' : 'o2'];
       sobra(h.fim, fim);
     } else if (f === 'prio') {
       r.prio = 'P' + (h.m[1] || DIG[h.m[2]]);
@@ -678,6 +680,22 @@ function parseOcorrencia(texto) {
   });
 
   const unir = l => l.filter((v, i) => !l.some((o, j) => j !== i && sem(o).includes(sem(v)) && (o.length > v.length || j < i))).join(', ');
+  /* Numa alta ou ida para casa ou lar, a morada do doente é o local do serviço e não se repete em Destino. */
+  const CASA = /^(?:casa|lar|domicilio)$/;
+  const aCasa = tipo === 'transporte' && destinos.length && (destinos.some(v => CASA.test(sem(v))) || /^Alta/.test(r.rotulo))
+    && !destinos.some(v => /hospital|clinica|centro de saude|consulta|exame|hemodialise|maternidade/.test(sem(v)))
+    && ruas.every(v => /urgencia|pisos?|hospital de barcelos/.test(sem(v)));
+  if (aCasa) {
+    const lar = destinos.some(v => sem(v) === 'lar');
+    r.casa = true;
+    ruas.length = 0;
+    for (const v of destinos) {
+      if (CASA.test(sem(v))) continue;
+      (FALAS.some(f => f.nome === v) || FORA.includes(v) ? fregs : ruas).push(v);
+    }
+    destinos.length = 0;
+    if (lar && !refs.length) refs.push(fregs[0] ? 'Lar de ' + fregs[0].replace(/[()]/g, '') : 'Lar');
+  }
   /* "Rua da Igreja Arcozelo": a freguesia dita colada ao fim da rua vai para o seu campo. "Rua de Arcozelo" é nome da rua. */
   ruas.forEach((v, i) => {
     const f = FALAS.find(x => !VAGOS.has(x.fala) && new RegExp('[\\s,]' + x.fala + '$').test(sem(v)));
@@ -905,6 +923,7 @@ function atualiza(brilhar) {
   S.hospDito = p.hospital;
   S.semDito = p.semNumero;
   S.extrasDito = p.extras;
+  S.casaDita = p.casa;
   if (S.texto.trim() && !S.inicio) S.inicio = hojeHora();
   if (!S.tipoManual) { S.tipo = p.tipo; S.rotulo = p.rotulo; }
   for (const f of CAMPOS) {
@@ -930,7 +949,7 @@ function desenha() {
   $('faixa').dataset.tipo = S.tipo || 'outro';
   $('rotulo').textContent = S.rotulo || (S.tipo ? TIPOS[S.tipo] : 'Tipo de serviço');
   for (const b of $('chips').children) b.setAttribute('aria-pressed', String(b.dataset.id === S.tipo));
-  $('linhaDestino').hidden = !(S.tipo === 'transporte' || S.tipo === 'transferencia' || S.campos.destino);
+  $('linhaDestino').hidden = !S.campos.destino && (!semCodu() || S.casaDita || /^Alta/.test(S.rotulo));
   /* CODU nunca existe em transporte nem em transferência. */
   $('linhaCodu').hidden = semCodu() || !(!S.tipo || S.tipo === 'emergencia' || S.campos.codu);
   $('linhaPrio').hidden = $('prioBloco').hidden = !(S.tipo === 'emergencia' || S.campos.prio);
