@@ -83,6 +83,8 @@ select { font: 500 15px/1 var(--body); min-height: 36px; border: 1.5px solid var
 .campo.largo { grid-column: 1 / -1; }
 .numeros { grid-column: 1 / -1; display: flex; flex-wrap: wrap; min-width: 0; }
 .numeros .campo { flex: 1 1 110px; }
+.numeros .campo[data-f="meio"] { flex-basis: 140px; }
+.numeros .campo[data-f="contacto"] { flex-basis: 100%; }
 .numeros .campo + .campo { border-left: 1px solid var(--rule); }
 .lista-b { display: grid; gap: 6px; }
 .lista-b:not(:empty) { padding-bottom: 8px; }
@@ -443,8 +445,9 @@ function cues(tipo) {
     lista.push({ f: 'local', drop: 1, origem: 1, re: /\bd[ae]\s+(?=(?:rua|avenida|travessa|largo)\b)/g });
     lista.push({ f: 'local', solo: 1, canon: 1, not: /\b(?:hospital|clinica|saude|maternidade|bombeiros|rua|avenida|travessa|largo|bairro|lugar|campo|estrada)\s$/, re: new RegExp('\\b(?:de|desde)\\s+(' + LUGAR_ALT + ')\\b', 'g') });
   }
-  /* No papel o número CODU vem sozinho, sem a palavra CODU. */
-  if (tipo === 'emergencia') lista.push({ f: 'coduNu', re: /\b(\d{3}[\s.]?\d{2}[\s.]?\d{2})\b/g });
+  /* No papel e na chamada o número CODU pode vir sozinho, com ou sem espaços entre os algarismos. */
+  if (tipo === 'emergencia') lista.push({ f: 'coduNu', re: /\b(\d(?:[\s.]?\d){6})\b(?!\s?\d)/g });
+  if (!transp) lista.push({ f: 'local', solo: 1, canon: 1, re: new RegExp('\\bpara\\s+(' + FALAS.map(f => f.fala).join('|') + ')\\b', 'g') });
   return lista;
 }
 
@@ -504,7 +507,7 @@ function semEnchimento(s) {
 /* Palavras que o reconhecimento de voz troca: acrescentar aqui cada erro novo que aparecer. */
 const VOZ = [
   [/\b[kc][ou]duros?\b/gi, 'CODU'],
-  [/\bnelson ver[ií]ssimo\b/gi, 'Tamel São Veríssimo'],
+  [/\b(?:tamb[eé]m|nelson|camel|tamil)(?:\s+eu)?\s+(?:s[aã]o\s+|sou\s+)?ver[ií]ssimo\b/gi, 'Tamel São Veríssimo'],
   [/\bo que [eé] fish\b/gi, 'dispneia'],
   [/\b(?:mesmo )?esse m[eé]dico\b/gi, 'emergência médica'],
   [/\balij[oó](?![a-zà-ú])/gi, 'Lijó'],
@@ -643,6 +646,11 @@ function parseOcorrencia(texto) {
   const unir = l => l.filter((v, i) => !l.some((o, j) => j !== i && sem(o).includes(sem(v)) && (o.length > v.length || j < i))).join(', ');
   /* "Lar de Tamel": a freguesia pode vir só na referência. */
   if (!fregs.length && !transp) for (const v of refs) { const f = areaDe(v); if (f) { fregs.push(f.nome); break; } }
+  /* Freguesia dita solta: fora das ruas e nunca "Barcelos", que aparece sempre em "Bombeiros de Barcelos" e "Barcelos 3". */
+  if (!fregs.length && !transp) {
+    const f = areaDe(ruas.reduce((s, v) => s.split(sem(v)).join(' '), n));
+    if (f && sem(f.nome) !== 'barcelos') fregs.push(f.nome);
+  }
   r.rua = unir(ruas);
   r.freg = unir(fregs);
   r.local = unir(ruas.concat(fregs));
@@ -657,7 +665,9 @@ function parseOcorrencia(texto) {
     else blocos.push(Object.assign({}, p));
   }
   const frases = blocos.map(p => limpa(p.s).replace(/^uma?\s+(?=\S)/i, '')).filter((v, i, l) => v.length >= 3 && l.findIndex(o => sem(o) === sem(v)) === i);
-  const desc = frases.join(', ');
+  /* "Masculino de 87 com doutor... masculino de 87 com dor": quando se repete, vale a última. */
+  const doente = s => (/^(?:masculino|feminino) de \d+/i.exec(s) || [''])[0].toLowerCase();
+  const desc = frases.filter((v, i) => !doente(v) || !frases.slice(i + 1).some(o => doente(o) === doente(v))).join(', ');
   /* Nos transportes não há circunstâncias: o motivo vem do tipo de serviço. */
   r.desc = transp ? '' : desc.charAt(0).toUpperCase() + desc.slice(1);
   return r;
