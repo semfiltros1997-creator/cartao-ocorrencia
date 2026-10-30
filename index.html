@@ -94,10 +94,6 @@ select { font: 500 15px/1 var(--body); min-height: 36px; border: 1.5px solid var
 .escolhido small { display: block; color: var(--muted); font-size: 13px; }
 .por-b { grid-column: 1 / -1; display: grid; gap: 8px; }
 .por-b .botao { background: var(--send); border-color: var(--send); color: var(--on-strong); padding-block: 10px; height: auto; line-height: 1.2; text-align: center; }
-.contactos { background: var(--panel); border: 1px solid var(--rule); border-radius: 8px; padding: 12px 14px; }
-.contactos summary { font: 700 20px/1.2 var(--display); color: var(--ink); }
-.contactos-corpo { display: grid; gap: 12px; padding-top: 12px; }
-.form-b { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; align-items: end; }
 .prio-chips { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
 .prio-chips button { padding: 0; min-height: 40px; font: 600 16px/1 var(--mono); }
 [data-p="P1"] { --cor-p: var(--t-incendio); --txt-p: var(--on-strong); }
@@ -120,9 +116,6 @@ select { font: 500 15px/1 var(--body); min-height: 36px; border: 1.5px solid var
 #estadoCobranca[data-estado="urgente"] { color: var(--send); }
 .valor-linha { display: flex; align-items: center; gap: 8px; }
 .valor-linha input { max-width: 120px; }
-.form-b input, #importarPrecos { width: 100%; border: 1.5px solid var(--rule); border-radius: 6px; background: var(--paper); color: var(--ink); font: 400 16px/1.3 var(--body); padding: 9px 10px; margin-top: 4px; }
-#importar, #importarPrecos { min-height: 90px; resize: vertical; }
-.acoes-b { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 8px; }
 .contacto { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; align-items: center; padding: 6px 0; border-top: 1px solid var(--rule); }
 .contacto span { overflow-wrap: anywhere; font-size: 15px; }
 .topo-campo { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 20px; }
@@ -278,25 +271,6 @@ footer { color: var(--muted); font-size: 13px; max-width: 72ch; }
     <h2>Cartões das últimas 24 horas</h2>
     <div id="listaRecentes"></div>
   </section>
-
-  <details class="contactos" id="precos">
-    <summary>Preços de transporte (<span id="nPrecos">0</span>)</summary>
-    <div class="contactos-corpo">
-      <form class="form-b" id="formPreco">
-        <div><label class="rotulo" for="p-nome">Local</label><input id="p-nome" autocomplete="off" required></div>
-        <div><label class="rotulo" for="p-valor">Valor em euros</label><input id="p-valor" inputmode="decimal" autocomplete="off" required></div>
-        <button type="submit">Guardar</button>
-      </form>
-      <div>
-        <label class="rotulo" for="importarPrecos">Colar preços</label>
-        <textarea id="importarPrecos" placeholder="Barqueiros; 30"></textarea>
-        <div style="color: var(--muted); font-size: 14px">Um local por linha: nome e valor, separados por ponto e vírgula. Também pode colar as duas colunas do Excel.</div>
-        <div class="acoes-b"><button id="btnImportarPrecos" type="button">Importar preços</button></div>
-      </div>
-      <div id="msgPrecos" aria-live="polite"></div>
-      <div id="listaPrecos"></div>
-    </div>
-  </details>
 
   <div id="linhaBloquear" hidden><button id="btnBloquear" type="button">Sair</button></div>
   <footer>Os cartões ficam guardados só neste aparelho e são apagados ao fim de 24 horas. Os contactos e os preços só abrem com uma conta. O ditado usa o serviço de voz do navegador e a procura de pontos usa o OpenStreetMap. Confirme sempre o ponto antes de enviar.</footer>
@@ -1139,49 +1113,6 @@ function procuraBombeiro() {
   return achados;
 }
 
-const lerValor = v => { const n = parseFloat(String(v).replace(/[€\s]/g, '').replace(',', '.')); return n >= 0 ? n : null; };
-
-function poePreco(nome, valor) {
-  const i = precos.findIndex(p => sem(p.nome) === sem(nome));
-  if (i >= 0) precos[i] = { nome, valor }; else precos.push({ nome, valor });
-}
-
-function guardaPrecos() {
-  precos.sort((a, b) => a.nome.localeCompare(b.nome, 'pt'));
-  guarda.gravar('cartao.precos', precos);
-  desenhaPrecos();
-  desenha();
-}
-
-function desenhaPrecos() {
-  $('nPrecos').textContent = precos.length;
-  const caixa = $('listaPrecos');
-  caixa.textContent = '';
-  for (const p of precos) {
-    const linha = document.createElement('div'); linha.className = 'contacto';
-    const s = document.createElement('span');
-    s.textContent = p.nome + ' · ' + euros(precoTexto(p.valor));
-    const b = document.createElement('button');
-    b.type = 'button'; b.textContent = 'Apagar'; b.setAttribute('aria-label', 'Apagar preço de ' + p.nome);
-    b.onclick = () => { precos = precos.filter(x => x !== p); guardaPrecos(); };
-    linha.append(s, b);
-    caixa.appendChild(linha);
-  }
-}
-
-function importaPrecos() {
-  let bons = 0, maus = 0;
-  for (const linha of $('importarPrecos').value.split(/\r?\n/)) {
-    if (!linha.trim()) continue;
-    const p = linha.split(/\t|;/).map(v => v.trim());
-    const valor = lerValor(p[1]);
-    if (p[0] && valor !== null) { poePreco(p[0], valor); bons++; } else maus++;
-  }
-  guardaPrecos();
-  $('importarPrecos').value = '';
-  $('msgPrecos').textContent = bons + ' importados.' + (maus ? ' ' + maus + ' linhas ignoradas: confirme o nome e o valor.' : '');
-}
-
 function linkMapa() {
   if (S.ponto) return 'https://www.google.com/maps/search/?api=1&query=' + S.ponto.lat + ',' + S.ponto.lon;
   const q = consultasMapa(S.campos)[0];
@@ -1465,16 +1396,6 @@ $('f-valor').addEventListener('input', e => { S.valorManual = e.target.value.tri
 $('f-espera').addEventListener('input', e => { S.esperaH = e.target.value.trim(); desenha(); });
 $('f-o2h').addEventListener('input', e => { S.o2H = e.target.value.trim(); desenha(); });
 $('valorTabela').onclick = () => { S.valorManual = null; $('f-valor').blur(); desenha(); };
-$('formPreco').addEventListener('submit', e => {
-  e.preventDefault();
-  const nome = $('p-nome').value.trim(), valor = lerValor($('p-valor').value);
-  if (valor === null) { $('msgPrecos').textContent = 'Escreva o valor em euros, por exemplo 25.'; return; }
-  poePreco(nome, valor);
-  guardaPrecos();
-  $('msgPrecos').textContent = nome + ' guardado.';
-  e.target.reset();
-});
-$('btnImportarPrecos').onclick = importaPrecos;
 $('mic').onclick = () => {
   if (aOuvir) { pararMic(); return; }
   comecarMic();
@@ -1497,8 +1418,9 @@ if (navigator.share && window.top === window.self) {
   $('partilhar').onclick = async () => { guardaRecente(); try { await navigator.share({ text: mensagem('sms') }); } catch {} };
 }
 
-setInterval(() => { $('relogio').textContent = new Date().toLocaleTimeString('pt-PT'); }, 1000);
-$('relogio').textContent = new Date().toLocaleTimeString('pt-PT');
+const relogio = () => { const a = new Date(); $('relogio').textContent = a.toLocaleDateString('pt-PT') + ' ' + a.toLocaleTimeString('pt-PT'); };
+setInterval(relogio, 1000);
+relogio();
 
 /* O que estava a ser escrito dura só até fechar a aba. */
 const rascunho = guarda.ler('cartao.rascunho', null);
@@ -1509,7 +1431,6 @@ if (rascunho && (rascunho.texto || Object.keys(rascunho.editados || {}).length))
   atualiza(false);
 } else atualiza(false);
 desenhaRecentes();
-desenhaPrecos();
 
 if (COFRE) {
   /* Limpa o que versões anteriores deixaram guardado no aparelho. */
@@ -1529,7 +1450,7 @@ if (COFRE) {
       $('cofreSenha').value = ''; $('cofreMsg').textContent = '';
       $('cofre').hidden = true;
       document.body.classList.remove('fechado');
-      desenhaPrecos(); desenha();
+      desenha();
     } catch (err) {
       $('cofreMsg').textContent = err && err.name === 'OperationError' ? 'Conta ou senha errada.' : 'Não foi possível abrir aqui. Abra no site próprio.';
     }
