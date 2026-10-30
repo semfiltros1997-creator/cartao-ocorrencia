@@ -507,6 +507,7 @@ const HOSP = [
   { re: 'hospital (?:de )?guimaraes', nome: 'Hospital de Guimarães', rua: 'Rua dos Cutileiros', loc: 'Guimarães' },
   { re: 'hospital (?:de )?santo tirso', nome: 'Hospital de Santo Tirso', rua: 'Rua de Dona Maria do Carmo Azevedo', loc: 'Santo Tirso' },
   { re: 'hospital (?:do )?senhor do bonfim', nome: 'Hospital Senhor do Bonfim', rua: 'Travessa de Vila Verde', loc: 'Vila do Conde' },
+  { re: 'trofa saude (?:hospital central )?(?:do )?(?:senhor do )?bonfim', nome: 'Trofa Saúde do Bonfim', rua: 'Avenida António Oliveira Ramos', loc: 'Vila do Conde' },
   { re: 'hospital (?:de )?esposende', nome: 'Hospital de Esposende', rua: 'Avenida Doutor Henrique Barros Lima', loc: 'Esposende' },
 ];
 const achaHosp = s => HOSP.find(p => new RegExp('\\b(?:' + p.re + ')\\b').test(s));
@@ -806,7 +807,8 @@ const precoTexto = v => (Number.isInteger(v) ? String(v) : Number(v).toFixed(2))
 /* Barcelos é a sede do concelho: uma freguesia dita no mesmo texto é mais precisa e tem prioridade. */
 const chave = s => sem(s || '').replace(/[()]/g, ' ').replace(/\b(?:d[eoa]s?)\b/g, ' ').replace(/\s+/g, ' ').trim();
 function precoDe(txt, precos) {
-  const n = chave(txt);
+  /* Na tabela de preços, a Trofa Saúde do Bonfim é o Hospital Senhor do Bonfim. */
+  const n = chave(txt).replace(/\btrofa saude (?:senhor )?bonfim\b/, 'hospital senhor bonfim');
   const contem = nome => new RegExp('\\b' + chave(nome).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b').test(n);
   const bate = precos.filter(p => contem(p.nome));
   if (bate.length) return bate.sort((a, b) => (chave(a.nome) === 'barcelos') - (chave(b.nome) === 'barcelos') || b.nome.length - a.nome.length)[0];
