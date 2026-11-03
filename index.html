@@ -362,7 +362,7 @@ function detetaTipo(n) {
     ['transporte', /\btransportes?\b|\bhemodialise\b|\bconsulta\b|\bexames?\b|\bdomicilio\b|\bpara casa\b|\balta medica\b|\balta para\b|\baltas?\s+d[ao]\b|\b(?:vai de|teve|de) alta\b|\bcadaver(?:es)?\b|\bobito\b/],
     ['incendio', /\bincendios?\b|\bfogo\b|\bchamas\b|\ba arder\b|\bqueimadas?\b|\brescaldo\b/],
     ['acidente', /\bacidentes?\b|\bcolisao\b|\bdespist\w+\b|\bcapotamento\b|\batropelamento\b/],
-    ['outro', /\binundac\w+\b|\bcheia\b|\bqueda de arvore\b|\babertura de porta\b|\bsalvamento\b|\bdesencarceramento\b|\blimpeza de via\b|\babastecimento de agua\b|\bfuga de gas\b|\belevador\b|\bbuscas?\b|\bresgate\b|\bpatrulhamento\b|\bpiquete\b|\bcamarata\b|\blimpeza de via\b|\breboque\b/],
+    ['outro', /\binundac\w+\b|\bcheia\b|\bqueda de arvores?\b|\barvores? caid[ao]s?\b|\bcaiu (?:uma |a )?arvore\b|\barvore caiu\b|\babertura de porta\b|\bsalvamento\b|\bdesencarceramento\b|\blimpeza de via\b|\babastecimento de agua\b|\bfuga de gas\b|\belevador\b|\bbuscas?\b|\bresgate\b|\bpatrulhamento\b|\bpiquete\b|\bcamarata\b|\blimpeza de via\b|\breboque\b/],
   ];
   let melhor = null, pos = Infinity;
   for (const [id, re] of fortes) { const m = re.exec(n); if (m && m.index < pos) { pos = m.index; melhor = id; } }
@@ -410,7 +410,7 @@ function rotuloTipo(id, n) {
     if (/\blimpeza de via\b|\boleo na (?:via|estrada)\b|\bsinaliza\w+\b/.test(n)) return 'Limpeza de via e sinalização de perigo';
     if (/\breboque\b|\bdesempanag\w+\b/.test(n)) return 'Reboque e desempanagem';
     if (/\belevador\b/.test(n)) return 'Abertura de elevador';
-    if (/\bqueda de arvore\b|\barvore caida\b/.test(n)) return 'Queda de árvore';
+    if (/\bqueda de arvores?\b|\barvores? caid[ao]s?\b|\bcaiu (?:uma |a )?arvore\b|\barvore caiu\b/.test(n)) return 'Queda de árvore';
     if (/\bfuga de gas\b|\bcheiro a gas\b/.test(n)) return 'Fuga de gás';
     if (/\binundac\w+\b|\bcheia\b/.test(n)) return 'Inundação';
     if (/\bbuscas?\b|\bresgate\b|\bdesaparecid\w+\b/.test(n)) return 'Busca e resgate';
