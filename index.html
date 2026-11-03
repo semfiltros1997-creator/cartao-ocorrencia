@@ -40,6 +40,8 @@ body { background: var(--bg); color: var(--ink); font: 400 16px/1.4 var(--body);
 #cofre h1 { font: 700 24px/1.2 var(--display); margin: 0; }
 #cofre input { width: 100%; font: 500 18px/1.3 var(--body); padding: 10px; border: 1px solid var(--rule); border-radius: 6px; background: transparent; color: var(--ink); }
 #cofreMsg { min-height: 20px; }
+#cofre .manter { display: flex; align-items: center; gap: 8px; color: var(--ink); }
+#cofre .manter input { width: 22px; height: 22px; flex: none; }
 .wrap { max-width: 1140px; margin: 0 auto; padding-block: 14px 32px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 14px; }
 header { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
 h1 { font: 700 26px/1 var(--display); letter-spacing: .01em; margin: 0; }
@@ -81,6 +83,19 @@ select { font: 500 15px/1 var(--body); min-height: 36px; border: 1.5px solid var
 .linhas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .campo { padding: 8px 12px 6px; border-top: 1px solid var(--rule); min-width: 0; }
 .campo.largo { grid-column: 1 / -1; }
+/* Nos transportes, os campos seguem a ordem da mensagem. */
+.linhas.transp > * { order: 20; }
+.linhas.transp > .numeros:first-child { order: 0; }
+.linhas.transp > [data-f="desc"] { order: 1; }
+.linhas.transp > [data-f="origem"] { order: 2; }
+.linhas.transp > [data-f="destino"] { order: 3; }
+.linhas.transp > [data-f="nome"] { order: 4; }
+.linhas.transp > [data-f="setor"] { order: 5; }
+.linhas.transp > #linhaExtras { order: 6; }
+.linhas.transp > [data-f="rua"] { order: 7; }
+.linhas.transp > [data-f="freg"] { order: 8; }
+.linhas.transp > #areaCartao { order: 9; }
+.linhas.transp > [data-f="ref"] { order: 10; }
 .numeros { grid-column: 1 / -1; display: flex; flex-wrap: wrap; min-width: 0; }
 .numeros .campo { flex: 1 1 110px; }
 .numeros .campo[data-f="meio"] { flex-basis: 140px; }
@@ -160,6 +175,7 @@ footer { color: var(--muted); font-size: 13px; max-width: 72ch; }
     <input id="cofreConta" autocomplete="username" autocapitalize="none" required>
     <label class="rotulo" for="cofreSenha">Senha</label>
     <input id="cofreSenha" type="password" autocomplete="current-password" required>
+    <label class="manter"><input id="cofreManter" type="checkbox" checked> Manter sessão neste aparelho</label>
     <button type="submit">Entrar</button>
     <div id="cofreMsg" aria-live="polite"></div>
   </form>
@@ -168,6 +184,7 @@ footer { color: var(--muted); font-size: 13px; max-width: 72ch; }
     <span class="relogio" id="relogio" aria-label="Hora atual">--:--:--</span>
     <span class="esp"></span>
     <button id="nova" type="button">Nova ocorrência</button>
+    <button id="btnBloquear" type="button" hidden>Sair</button>
   </header>
   <div class="aviso" id="avisoExemplo" hidden>Isto é um exemplo. Toque em Nova ocorrência para começar.</div>
 
@@ -205,6 +222,7 @@ footer { color: var(--muted); font-size: 13px; max-width: 72ch; }
         <div class="campo largo" data-f="freg"><div class="topo-campo"><label class="rotulo" for="f-freg">Freguesia ou localidade</label></div><input id="f-freg" list="freguesias" autocomplete="off"><datalist id="freguesias"></datalist></div>
         <div id="areaCartao" aria-live="polite" hidden></div>
         <div class="campo largo" data-f="ref"><div class="topo-campo"><label class="rotulo" for="f-ref">Ponto de referência</label></div><input id="f-ref" autocomplete="off" placeholder="Perto de, ao lado de"></div>
+        <div class="campo largo" data-f="origem" id="linhaOrigem" hidden><div class="topo-campo"><label class="rotulo" for="f-origem">Origem</label></div><input id="f-origem" list="origens" autocomplete="off"><datalist id="origens"><option value="Urgência"></option><option value="Pisos"></option><option value="Domicílio"></option></datalist></div>
         <div class="campo largo" data-f="destino" id="linhaDestino" hidden><div class="topo-campo"><label class="rotulo" for="f-destino">Destino</label></div><input id="f-destino" autocomplete="off"></div>
         <div class="campo largo" data-f="nome" id="linhaNome" hidden><div class="topo-campo"><label class="rotulo" for="f-nome">Utente</label></div><input id="f-nome" autocomplete="off"></div>
         <div class="campo largo" data-f="setor" id="linhaSetor" hidden>
@@ -272,7 +290,6 @@ footer { color: var(--muted); font-size: 13px; max-width: 72ch; }
     <div id="listaRecentes"></div>
   </section>
 
-  <div id="linhaBloquear" hidden><button id="btnBloquear" type="button">Sair</button></div>
   <footer>Os cartões ficam guardados só neste aparelho e são apagados ao fim de 24 horas. Os contactos e os preços só abrem com uma conta. O ditado usa o serviço de voz do navegador e a procura de pontos usa o OpenStreetMap. Confirme sempre o ponto antes de enviar.</footer>
 </div>
 
@@ -593,7 +610,7 @@ function parseOcorrencia(texto) {
     ate = h.fim;
   }
 
-  const r = { tipo, rotulo: rotuloTipo(tipo, n), local: '', ref: '', destino: '', desc: '', codu: '', sado: '', contacto: '', nome: '', hora: '', bombeiros: [], particular: false, quem: '', semNumero: false, hospital: false, prio: '', extras: {}, setor: '', meio: '', casa: false, destHosp: false };
+  const r = { tipo, rotulo: rotuloTipo(tipo, n), local: '', ref: '', destino: '', desc: '', codu: '', sado: '', contacto: '', nome: '', hora: '', bombeiros: [], particular: false, quem: '', semNumero: false, hospital: false, prio: '', extras: {}, setor: '', meio: '', origem: '', destHosp: false };
   const ruas = [], fregs = [], refs = [], destinos = [], partes = [];
   const sobra = (ini, fim) => { if (fim > ini) partes.push({ ini, fim, s: t.slice(ini, fim), solto: 1 }); };
   const transp = tipo === 'transporte' || tipo === 'transferencia';
@@ -689,21 +706,24 @@ function parseOcorrencia(texto) {
   });
 
   const unir = l => l.filter((v, i) => !l.some((o, j) => j !== i && sem(o).includes(sem(v)) && (o.length > v.length || j < i))).join(', ');
-  /* Numa alta ou ida para casa ou lar, a morada do doente é o local do serviço e não se repete em Destino. */
+  /* Hospital, urgência ou pisos de onde sai o doente são a origem, não a morada. */
+  if (transp) {
+    const saida = v => /^(?:urgencia|pisos?|hospital\b|centro de saude|clinica|lar\b)/.test(sem(v));
+    const orig = ruas.filter(saida);
+    if (orig.length) { r.origem = orig[orig.length - 1]; ruas.splice(0, ruas.length, ...ruas.filter(v => !saida(v))); }
+  }
+  /* Numa alta ou ida para casa ou lar, o destino é Domicílio ou o lar, e a rua dita vai para a Morada. */
   const CASA = /^(?:casa|lar|domicilio)$/;
   const aCasa = tipo === 'transporte' && destinos.length && (destinos.some(v => CASA.test(sem(v))) || /^Alta/.test(r.rotulo))
-    && !destinos.some(v => /hospital|clinica|centro de saude|consulta|exame|hemodialise|maternidade|ucc|cuidados|trofa|casa de saude/.test(sem(v)))
-    && ruas.every(v => /urgencia|pisos?|hospital de barcelos/.test(sem(v)));
+    && !destinos.some(v => /hospital|clinica|centro de saude|consulta|exame|hemodialise|maternidade|ucc|cuidados|trofa|casa de saude/.test(sem(v)));
   if (aCasa) {
     const lar = destinos.some(v => sem(v) === 'lar');
-    r.casa = true;
-    ruas.length = 0;
     for (const v of destinos) {
       if (CASA.test(sem(v))) continue;
       (FALAS.some(f => f.nome === v) || FORA.includes(v) ? fregs : ruas).push(v);
     }
     destinos.length = 0;
-    if (lar && !refs.length) refs.push(fregs[0] ? 'Lar de ' + fregs[0].replace(/[()]/g, '') : 'Lar');
+    destinos.push(lar ? (fregs[0] ? 'Lar de ' + fregs[0].replace(/[()]/g, '') : 'Lar') : 'Domicílio');
   }
   /* Hospital conhecido: fica só o nome certo e, numa transferência a partir do nosso hospital, a morada dele nos campos. */
   const hp = !aCasa && (hospital || HOSP.find(p => destinos.includes(p.nome)));
@@ -717,8 +737,8 @@ function parseOcorrencia(texto) {
       r.destHosp = true;
     }
   }
-  /* Saída do nosso hospital para um destino: o título já diz de onde sai, e o local fica livre para a morada do destino. */
-  if (tipo === 'transferencia' && destinos.length && !fregs.length && ruas.length && ruas.every(v => /^(?:urgencia|pisos?|hospital de barcelos)$/.test(sem(v)))) ruas.length = 0;
+  /* Exame ou consulta a partir de casa. */
+  if (tipo === 'transporte' && !aCasa && !r.origem && destinos.length && (ruas.length || fregs.length)) r.origem = 'Domicílio';
   /* "Rua da Igreja Arcozelo": a freguesia dita colada ao fim da rua vai para o seu campo. "Rua de Arcozelo" é nome da rua. */
   ruas.forEach((v, i) => {
     const f = FALAS.find(x => !VAGOS.has(x.fala) && new RegExp('[\\s,]' + x.fala + '$').test(sem(v)));
@@ -768,7 +788,7 @@ function motivoDe(rotulo) {
   if (/exame/.test(n)) return 'Realização de exame';
   if (/consulta/.test(n)) return 'Consulta';
   if (/cadaver/.test(n)) return 'Transporte de cadáver';
-  if (/alta/.test(n)) return 'Alta médica';
+  if (/alta/.test(n)) return 'Alta hospitalar';
   return 'Transporte';
 }
 
@@ -839,7 +859,7 @@ function consultasMapa(c) {
   const sufixo = s => (s = s.replace(/[()]/g, '').replace(/^(?:Urgência|Pisos?)(?=,|$)/, 'Hospital de Barcelos'), foraDeBarcelos(s) || /\bbarcelos$/i.test(s) ? s + ', Portugal' : s + ', Barcelos, Portugal');
   if (c.destHosp && c.destino) return [c.destino + ', ' + (c.freg || '') + ', Portugal'];
   /* Numa alta, a morada do doente vem no destino. */
-  if (!c.local && c.destino) {
+  if (!c.local && c.destino && c.destino !== 'Domicílio') {
     const dest = c.destino.replace(/^Casa,\s*/, '');
     /* Hospitais, clínicas e unidades podem ser longe de Barcelos. */
     lista.push(/^(?:hospital|ucc|unidade|cuidados|trofa|cl[ií]nica|casa de sa[uú]de|ipo|maternidade|centro)/i.test(dest) ? dest + ', Portugal' : sufixo(dest));
@@ -870,7 +890,7 @@ async function abreCofre(conta, senha) {
   return JSON.parse(new TextDecoder().decode(claro));
 }
 const juntaLocal = () => [S.campos.rua, S.campos.freg].map(v => (v || '').trim()).filter(Boolean).join(', ');
-const CAMPOS = ['hora', 'codu', 'meio', 'contacto', 'prio', 'setor', 'rua', 'freg', 'ref', 'destino', 'nome', 'desc'];
+const CAMPOS = ['hora', 'codu', 'meio', 'contacto', 'prio', 'setor', 'rua', 'freg', 'ref', 'origem', 'destino', 'nome', 'desc'];
 const ler = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } };
 const gravar = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
 
@@ -891,7 +911,9 @@ const sessao = {
   ler: (k, d) => { try { const v = sessionStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
   gravar: (k, v) => { try { sessionStorage.setItem(k, JSON.stringify(v)); } catch {} },
 };
-const guarda = COFRE ? sessao : { ler, gravar };
+/* "Manter sessão" guarda os dados abertos neste aparelho até tocar em Sair. */
+const manter = ler('cartao.manter', false);
+const guarda = COFRE && !manter ? sessao : { ler, gravar };
 let contactos = guarda.ler('cartao.contactos', []);
 let precos = guarda.ler('cartao.precos', [{ nome: 'Barcelos', valor: 20 }, { nome: 'Arcozelo', valor: 25 }]);
 /* Só um telefone no contactante é chamada particular; 112, 117, PSP, GNR, urgência, pisos e consulta externa não cobram. */
@@ -901,14 +923,12 @@ const particular = () => {
 };
 
 /* Condições do transporte: só aparecem na mensagem quando são positivas. */
-const EXTRAS = { acomp: 'c/ acompanhante', o2: 'c/ O₂', rodas: 'c/ rodas', sentado: 'Sentado/a', deitado: 'Deitado/a' };
+const EXTRAS = { sentado: 'Sentado/a', deitado: 'Deitado/a', rodas: 'c/ rodas', o2: 'c/ O₂', acomp: 'c/ acompanhante' };
 const temExtra = k => k in S.extrasManual ? S.extrasManual[k] : !!S.extrasDito[k];
 const comExtras = () => (S.tipo === 'transporte' || S.tipo === 'transferencia') && S.rotulo !== 'Transporte de cadáver';
 const textoExtras = () => comExtras() ? Object.keys(EXTRAS).filter(temExtra).map(k => EXTRAS[k]).join(' · ') : '';
 
 const semCodu = () => S.tipo === 'transporte' || S.tipo === 'transferencia';
-/* Numa alta ou ida para casa ou lar, a morada do doente é o destino do serviço. */
-const moradaDestino = () => S.tipo === 'transporte' && !S.campos.destino && (S.casaDita || /^Alta/.test(S.rotulo));
 
 /* Prioridades da triagem do INEM: no cartão aparece só o código. */
 const PRIOS = ['P1', 'P2', 'P3', 'P4', 'P5'];
@@ -958,7 +978,6 @@ function atualiza(brilhar) {
   S.hospDito = p.hospital;
   S.semDito = p.semNumero;
   S.extrasDito = p.extras;
-  S.casaDita = p.casa;
   S.campos.destHosp = p.destHosp || !!S.pontoDestino;
   if (S.texto.trim() && !S.inicio) S.inicio = hojeHora();
   if (!S.tipoManual) { S.tipo = p.tipo; S.rotulo = p.rotulo; }
@@ -985,15 +1004,16 @@ function desenha() {
   $('faixa').dataset.tipo = S.tipo || 'outro';
   $('rotulo').textContent = S.rotulo || (S.tipo ? TIPOS[S.tipo] : 'Tipo de serviço');
   for (const b of $('chips').children) b.setAttribute('aria-pressed', String(b.dataset.id === S.tipo));
-  $('linhaDestino').hidden = !S.campos.destino && (!semCodu() || S.casaDita || /^Alta/.test(S.rotulo));
+  $('linhaDestino').hidden = !S.campos.destino && !semCodu();
+  $('linhaOrigem').hidden = !semCodu();
+  document.querySelector('.linhas').classList.toggle('transp', semCodu());
   /* CODU nunca existe em transporte nem em transferência. */
   $('linhaCodu').hidden = semCodu() || !(!S.tipo || S.tipo === 'emergencia' || S.campos.codu);
   $('linhaPrio').hidden = $('prioBloco').hidden = !(S.tipo === 'emergencia' || S.campos.prio);
   $('linhaMeio').hidden = !(!S.tipo || COM_AREA.includes(S.tipo) || S.campos.meio);
   $('linhaExtras').hidden = $('linhaSetor').hidden = !comExtras();
   $('linhaNome').hidden = !semCodu();
-  document.querySelector('label[for="f-rua"]').textContent = moradaDestino() ? 'Destino' : S.campos.destHosp ? 'Morada do destino' : 'Morada';
-  document.querySelector('label[for="f-desc"]').textContent = semCodu() ? 'Motivo' : 'Circunstâncias';
+  document.querySelector('label[for="f-desc"]').textContent = semCodu() ? 'Tipo' : 'Circunstâncias';
   for (const b of $('setorChips').children) b.setAttribute('aria-pressed', String(sem(b.textContent) === sem((S.campos.setor || '').trim())));
   for (const b of $('extras').children) b.setAttribute('aria-pressed', String(temExtra(b.dataset.k)));
   const prio = (S.campos.prio || '').trim().toUpperCase();
@@ -1022,7 +1042,7 @@ function desenha() {
   $('copiar').disabled = semDados;
   $('partilhar').disabled = semDados;
   desenhaEquipa(wa, semDados);
-  guarda.gravar('cartao.rascunho', S);
+  sessao.gravar('cartao.rascunho', S);
 }
 
 const temConteudo = () => CAMPOS.some(f => f !== 'hora' && S.campos[f]) || !!S.tipo;
@@ -1120,19 +1140,20 @@ function linkMapa() {
 }
 
 function mensagem(modo) {
-  const c = S.campos, nome = (S.rotulo || (S.tipo ? TIPOS[S.tipo] : 'Ocorrência')).toUpperCase();
+  const c = S.campos, transporte = semCodu();
+  const nome = transporte ? 'TRANSPORTE' : (S.rotulo || (S.tipo ? TIPOS[S.tipo] : 'Ocorrência')).toUpperCase();
   const linhas = [modo === 'wa' ? '*' + nome + '*' : nome];
   const add = (r, v) => { if (v) linhas.push(r + ': ' + v); };
-  if (c.freg) linhas.push(c.freg + (c.hora ? ' · ' + c.hora : '')); else add('Hora', c.hora);
-  if (semCodu()) add('Utente', c.nome);
-  if (comExtras()) add('Serviço', (c.setor || '').trim());
-  if (c.destHosp) add('Destino', c.destino);
-  add(moradaDestino() ? 'Destino' : 'Morada', c.rua);
-  add('Referência', c.ref);
-  if (!c.destHosp) add('Destino', c.destino);
-  if (textoExtras()) linhas.push(textoExtras());
-  if (!semCodu()) add('Circunstâncias', c.desc); else if (S.editados.desc) add('Motivo', c.desc);
-  add('Prioridade', (c.prio || '').trim().toUpperCase()); if (!semCodu()) add('CODU', c.codu);
+  if (transporte) {
+    add('Tipo', c.desc); add('Origem', c.origem); add('Destino', c.destino); add('Utente', c.nome);
+    const info = [comExtras() ? (c.setor || '').trim() : '', textoExtras()].filter(Boolean).join(' · ');
+    if (info) linhas.push(info);
+    add('Morada', c.local); add('Referência', c.ref);
+  } else {
+    if (c.freg) linhas.push(c.freg + (c.hora ? ' · ' + c.hora : '')); else add('Hora', c.hora);
+    add('Morada', c.rua); add('Referência', c.ref); add('Destino', c.destino); add('Circunstâncias', c.desc);
+  }
+  add('Prioridade', (c.prio || '').trim().toUpperCase()); if (!transporte) add('CODU', c.codu);
   const cob = cobranca();
   if (cob && cob.estado === 'cobrar') add('Cobrar', euros(cob.valor) || 'valor por confirmar');
   add('Mapa', linkMapa());
@@ -1302,7 +1323,7 @@ function novaOcorrencia() {
   avisoMapa = '';
   $('texto').value = '';
   $('feedback').textContent = '';
-  guarda.gravar('cartao.rascunho', null);
+  sessao.gravar('cartao.rascunho', null);
   estadoMic('Pronto para ditar', 'Fale durante a chamada. O cartão preenche quando parar de gravar.');
   atualiza(false);
 }
@@ -1423,7 +1444,7 @@ setInterval(relogio, 1000);
 relogio();
 
 /* O que estava a ser escrito dura só até fechar a aba. */
-const rascunho = guarda.ler('cartao.rascunho', null);
+const rascunho = sessao.ler('cartao.rascunho', null);
 if (rascunho && (rascunho.texto || Object.keys(rascunho.editados || {}).length)) {
   S = Object.assign(vazio(), rascunho);
   $('texto').value = S.texto;
@@ -1434,9 +1455,9 @@ desenhaRecentes();
 
 if (COFRE) {
   /* Limpa o que versões anteriores deixaram guardado no aparelho. */
-  for (const k of ['aberto', 'contactos', 'precos', 'rascunho']) { try { localStorage.removeItem('cartao.' + k); } catch {} }
-  $('linhaBloquear').hidden = false;
-  if (!sessao.ler('cartao.aberto', false)) {
+  for (const k of manter ? ['rascunho'] : ['aberto', 'contactos', 'precos', 'rascunho']) { try { localStorage.removeItem('cartao.' + k); } catch {} }
+  $('btnBloquear').hidden = false;
+  if (!guarda.ler('cartao.aberto', false)) {
     document.body.classList.add('fechado');
     $('cofre').hidden = false;
   }
@@ -1446,7 +1467,9 @@ if (COFRE) {
     try {
       const d = await abreCofre($('cofreConta').value, $('cofreSenha').value);
       contactos = d.contactos; precos = d.precos;
-      sessao.gravar('cartao.contactos', contactos); sessao.gravar('cartao.precos', precos); sessao.gravar('cartao.aberto', true);
+      const fica = $('cofreManter').checked, destino = fica ? { gravar } : sessao;
+      if (fica) gravar('cartao.manter', true);
+      destino.gravar('cartao.contactos', contactos); destino.gravar('cartao.precos', precos); destino.gravar('cartao.aberto', true);
       $('cofreSenha').value = ''; $('cofreMsg').textContent = '';
       $('cofre').hidden = true;
       document.body.classList.remove('fechado');
@@ -1456,8 +1479,9 @@ if (COFRE) {
     }
   });
   $('btnBloquear').onclick = () => {
+    if (!confirm('Sair desta conta neste aparelho?')) return;
     try { sessionStorage.clear(); } catch {}
-    for (const k of ['rascunho', 'recentes']) { try { localStorage.removeItem('cartao.' + k); } catch {} }
+    for (const k of ['manter', 'aberto', 'contactos', 'precos', 'rascunho', 'recentes']) { try { localStorage.removeItem('cartao.' + k); } catch {} }
     location.reload();
   };
 }
