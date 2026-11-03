@@ -235,7 +235,7 @@ footer { color: var(--muted); font-size: 13px; max-width: 72ch; }
         <div id="areaCartao" aria-live="polite" hidden></div>
         <div class="campo largo" data-f="ref"><div class="topo-campo"><label class="rotulo" for="f-ref">Ponto de referência</label></div><input id="f-ref" autocomplete="off" placeholder="Perto de, ao lado de"></div>
         <div class="campo largo" data-f="origem" id="linhaOrigem" hidden><div class="topo-campo"><label class="rotulo" for="f-origem">Origem</label></div><input id="f-origem" autocomplete="off"><div class="extras" id="origemChips" role="group" aria-label="Origem"></div></div>
-        <div class="campo largo" data-f="destino" id="linhaDestino" hidden><div class="topo-campo"><label class="rotulo" for="f-destino">Destino</label></div><input id="f-destino" autocomplete="off"></div>
+        <div class="campo largo" data-f="destino" id="linhaDestino" hidden><div class="topo-campo"><label class="rotulo" for="f-destino">Destino</label></div><input id="f-destino" autocomplete="off"><div class="extras" id="destinoChips" role="group" aria-label="Destino"></div></div>
         <div class="campo largo" data-f="nome" id="linhaNome" hidden><div class="topo-campo"><label class="rotulo" for="f-nome">Utente</label></div><input id="f-nome" autocomplete="off"></div>
         <div class="campo largo" data-f="setor" id="linhaSetor" hidden>
           <div class="topo-campo"><label class="rotulo" for="f-setor">Serviço do hospital</label></div>
@@ -797,6 +797,16 @@ function parseOcorrencia(texto) {
     destinos.length = 0;
     destinos.push(lar ? (fregs[0] ? 'Lar de ' + fregs[0].replace(/[()]/g, '') : 'Lar') : 'Domicílio');
   }
+  /* "Para a consulta externa, Rua Nova em Lijó": com destino num hospital ou nas consultas, a rua e a freguesia ditas são a morada do doente. */
+  const instituicao = v => /^(?:hospital|ipo|centro|maternidade|ucc|unidade|trofa|clinica|casa de saude|consultas?|exames?)/.test(sem(v));
+  if (!aCasa && (hospital || destinos.some(instituicao))) {
+    for (const v of destinos.filter(v => !instituicao(v))) {
+      if (FALAS.some(x => x.nome === v)) fregs.push(v);
+      else if (RUA.test(sem(v))) ruas.push(v);
+      else continue;
+      destinos.splice(destinos.indexOf(v), 1);
+    }
+  }
   /* Hospital conhecido: fica só o nome certo e, numa transferência a partir do nosso hospital, a morada dele nos campos. */
   const hp = !aCasa && (hospital || HOSP.find(p => destinos.includes(p.nome)));
   if (hp) {
@@ -809,8 +819,9 @@ function parseOcorrencia(texto) {
       r.destHosp = true;
     }
   }
-  /* Exame ou consulta a partir de casa. */
-  if (tipo === 'transporte' && !aCasa && !r.origem && destinos.length && (ruas.length || fregs.length)) r.origem = 'Domicílio';
+  /* Domicílio e consultas externas são sempre destino, nunca origem. */
+  if (/Consultas Externas$/.test(r.origem)) { if (!destinos.length) destinos.push(r.origem); r.origem = ''; }
+  destinos.forEach((v, i) => { if (/^consultas? externas?/.test(sem(v))) destinos[i] = 'Hospital de Barcelos – Consultas Externas'; });
   /* "Rua da Igreja Arcozelo": a freguesia dita colada ao fim da rua vai para o seu campo. "Rua de Arcozelo" é nome da rua. */
   ruas.forEach((v, i) => {
     const f = FALAS.find(x => !VAGOS.has(x.fala) && new RegExp('[\\s,]' + x.fala + '$').test(sem(v)));
@@ -1093,6 +1104,7 @@ function desenha() {
   const meios = meioQuartel(S.campos.meio).split(', ');
   for (const b of $('meioChips').children) b.setAttribute('aria-pressed', String(meios.includes(b.textContent)));
   for (const b of $('origemChips').children) b.setAttribute('aria-pressed', String(S.campos.origem === b.dataset.v));
+  for (const b of $('destinoChips').children) b.setAttribute('aria-pressed', String(S.campos.destino === b.dataset.v));
   desenhaSub();
   $('linhaExtras').hidden = $('linhaSetor').hidden = !comExtras();
   $('linhaNome').hidden = !semCodu();
@@ -1550,7 +1562,7 @@ $('f-meio').addEventListener('blur', () => setTimeout(() => {
   if (document.activeElement === $('f-meio')) return;
   meiosAbertos = false; $('f-meio').inputMode = 'none'; desenha();
 }, 200));
-for (const [nome, v, setor] of [['Urgência', 'Hospital de Barcelos – Urgência'], ['Piso 3 · Ortopedia', 'Hospital de Barcelos – Piso 3', 'Ortopedia'], ['Piso 4 · Medicina', 'Hospital de Barcelos – Piso 4', 'Medicina'], ['Piso 5 · Cirurgia', 'Hospital de Barcelos – Piso 5', 'Cirurgia'], ['Consultas Externas', 'Hospital de Barcelos – Consultas Externas'], ['Domicílio', 'Domicílio']]) {
+for (const [nome, v, setor] of [['Urgência', 'Hospital de Barcelos – Urgência'], ['Piso 3 · Ortopedia', 'Hospital de Barcelos – Piso 3', 'Ortopedia'], ['Piso 4 · Medicina', 'Hospital de Barcelos – Piso 4', 'Medicina'], ['Piso 5 · Cirurgia', 'Hospital de Barcelos – Piso 5', 'Cirurgia']]) {
   const b = document.createElement('button');
   b.type = 'button'; b.textContent = nome; b.dataset.v = v;
   b.onclick = () => {
@@ -1561,6 +1573,18 @@ for (const [nome, v, setor] of [['Urgência', 'Hospital de Barcelos – Urgênci
     desenha();
   };
   $('origemChips').appendChild(b);
+}
+for (const [nome, v] of [['Domicílio', 'Domicílio'], ['Consultas Externas', 'Hospital de Barcelos – Consultas Externas']]) {
+  const b = document.createElement('button');
+  b.type = 'button'; b.textContent = nome; b.dataset.v = v;
+  b.onclick = () => {
+    const desmarca = S.campos.destino === v;
+    S.campos.destino = desmarca ? '' : v;
+    if (desmarca) delete S.editados.destino; else S.editados.destino = true;
+    $('f-destino').value = S.campos.destino;
+    desenha();
+  };
+  $('destinoChips').appendChild(b);
 }
 for (const s of SETORES) {
   const b = document.createElement('button');
