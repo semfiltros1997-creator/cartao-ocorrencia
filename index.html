@@ -234,8 +234,8 @@ footer { color: var(--muted); font-size: 13px; max-width: 72ch; }
         <div class="campo largo" data-f="freg"><div class="topo-campo"><label class="rotulo" for="f-freg">Freguesia ou localidade</label></div><input id="f-freg" list="freguesias" autocomplete="off"><datalist id="freguesias"></datalist></div>
         <div id="areaCartao" aria-live="polite" hidden></div>
         <div class="campo largo" data-f="ref"><div class="topo-campo"><label class="rotulo" for="f-ref">Ponto de referência</label></div><input id="f-ref" autocomplete="off" placeholder="Perto de, ao lado de"></div>
-        <div class="campo largo" data-f="origem" id="linhaOrigem" hidden><div class="topo-campo"><label class="rotulo" for="f-origem">Origem</label></div><input id="f-origem" autocomplete="off"><div class="extras" id="origemChips" role="group" aria-label="Origem"></div></div>
-        <div class="campo largo" data-f="destino" id="linhaDestino" hidden><div class="topo-campo"><label class="rotulo" for="f-destino">Destino</label></div><input id="f-destino" autocomplete="off"><div class="extras" id="destinoChips" role="group" aria-label="Destino"></div></div>
+        <div class="campo largo" data-f="origem" id="linhaOrigem" hidden><div class="topo-campo"><label class="rotulo" for="f-origem">Origem</label></div><input id="f-origem" inputmode="none" placeholder="Tocar para escolher" autocomplete="off"><div class="extras" id="origemChips" role="group" aria-label="Origem"></div></div>
+        <div class="campo largo" data-f="destino" id="linhaDestino" hidden><div class="topo-campo"><label class="rotulo" for="f-destino">Destino</label></div><input id="f-destino" inputmode="none" placeholder="Tocar para escolher" autocomplete="off"><div class="extras" id="destinoChips" role="group" aria-label="Destino"></div></div>
         <div class="campo largo" data-f="nome" id="linhaNome" hidden><div class="topo-campo"><label class="rotulo" for="f-nome">Utente</label></div><input id="f-nome" autocomplete="off"></div>
         <div class="campo largo" data-f="setor" id="linhaSetor" hidden>
           <div class="topo-campo"><label class="rotulo" for="f-setor">Serviço do hospital</label></div>
@@ -1105,6 +1105,8 @@ function desenha() {
   for (const b of $('meioChips').children) b.setAttribute('aria-pressed', String(meios.includes(b.textContent)));
   for (const b of $('origemChips').children) b.setAttribute('aria-pressed', String(S.campos.origem === b.dataset.v));
   for (const b of $('destinoChips').children) b.setAttribute('aria-pressed', String(S.campos.destino === b.dataset.v));
+  $('origemChips').hidden = !listasAbertas.origem;
+  $('destinoChips').hidden = !listasAbertas.destino;
   desenhaSub();
   $('linhaExtras').hidden = $('linhaSetor').hidden = !comExtras();
   $('linhaNome').hidden = !semCodu();
@@ -1570,21 +1572,45 @@ for (const [nome, v, setor] of [['Urgência', 'Hospital de Barcelos – Urgênci
     S.campos.origem = desmarca ? '' : v;
     if (desmarca) delete S.editados.origem; else S.editados.origem = true;
     if (setor && !desmarca) { S.campos.setor = setor; S.editados.setor = true; }
-    desenha();
+    $('f-origem').value = S.campos.origem;
+    fechaLista('origem');
   };
   $('origemChips').appendChild(b);
 }
-for (const [nome, v] of [['Domicílio', 'Domicílio'], ['Consultas Externas', 'Hospital de Barcelos – Consultas Externas']]) {
+for (const [nome, v] of [['Domicílio', 'Domicílio'], ['Consultas Externas', 'Hospital de Barcelos – Consultas Externas'], ['Hospital de Braga', 'Hospital de Braga'], ['Hospital de São João', 'Hospital de São João'], ['IPO Porto', 'IPO Porto'], ['Hospital de Santo António', 'Hospital de Santo António'], ['Hospital de Famalicão', 'Hospital de Famalicão'], ['Hospital de Viana do Castelo', 'Hospital de Viana do Castelo'], ['Trofa Saúde do Bonfim', 'Trofa Saúde do Bonfim']]) {
   const b = document.createElement('button');
   b.type = 'button'; b.textContent = nome; b.dataset.v = v;
   b.onclick = () => {
-    const desmarca = S.campos.destino === v;
+    const desmarca = S.campos.destino === v, hp = HOSP.find(p => p.nome === v);
     S.campos.destino = desmarca ? '' : v;
     if (desmarca) delete S.editados.destino; else S.editados.destino = true;
+    /* Numa transferência, o hospital escolhido traz a morada, como quando é dito. */
+    if (hp && !desmarca && S.tipo === 'transferencia' && !S.campos.rua) {
+      S.campos.rua = hp.rua; S.campos.freg = hp.loc; S.campos.local = juntaLocal();
+      S.editados.rua = S.editados.freg = true; S.campos.destHosp = true;
+    }
     $('f-destino').value = S.campos.destino;
-    desenha();
+    fechaLista('destino');
   };
   $('destinoChips').appendChild(b);
+}
+/* Origem e Destino: as opções abrem ao tocar no campo e fecham ao escolher ou ao tocar fora. */
+const listasAbertas = { origem: false, destino: false };
+function fechaLista(k) { listasAbertas[k] = false; $('f-' + k).inputMode = 'none'; desenha(); }
+for (const k of ['origem', 'destino']) {
+  const caixa = $(k + 'Chips'), campo = $('f-' + k);
+  const outro = document.createElement('button');
+  outro.type = 'button'; outro.textContent = 'Outro…';
+  outro.onclick = () => { campo.inputMode = 'text'; campo.blur(); campo.focus(); };
+  caixa.appendChild(outro);
+  caixa.addEventListener('pointerdown', e => e.preventDefault());
+  const abre = () => { if (!listasAbertas[k]) { listasAbertas[k] = true; desenha(); } };
+  campo.addEventListener('focus', abre);
+  campo.addEventListener('click', abre);
+  document.addEventListener('pointerdown', e => {
+    if (!listasAbertas[k] || $(k === 'origem' ? 'linhaOrigem' : 'linhaDestino').contains(e.target)) return;
+    fechaLista(k);
+  });
 }
 for (const s of SETORES) {
   const b = document.createElement('button');
