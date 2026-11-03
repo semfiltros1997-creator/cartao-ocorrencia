@@ -80,6 +80,7 @@ select { font: 500 15px/1 var(--body); min-height: 36px; border: 1.5px solid var
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chips button { min-height: 36px; padding: 0 10px; font: 600 14px/1 var(--body); background: transparent; color: var(--on-strong); border-color: var(--on-strong); }
 .chips.sub button { min-height: 32px; font-size: 13px; }
+.sub-botao { justify-self: start; min-height: 38px; padding: 0 12px; font: 600 15px/1 var(--body); background: var(--on-strong); color: var(--cor); border-color: var(--on-strong); }
 .chips button[aria-pressed="true"] { background: var(--on-strong); color: var(--cor); }
 .linhas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .campo { padding: 8px 12px 6px; border-top: 1px solid var(--rule); min-width: 0; }
@@ -222,6 +223,7 @@ footer { color: var(--muted); font-size: 13px; max-width: 72ch; }
       <div class="faixa" id="faixa" data-tipo="outro">
         <div id="rotulo">Tipo de serviço</div>
         <div class="chips" id="chips" role="group" aria-label="Tipo de serviço"></div>
+        <button class="sub-botao" id="subBotao" type="button" hidden>Escolher tipo ▾</button>
         <div class="chips sub" id="subChips" role="group" aria-label="Subtipo" hidden></div>
       </div>
       <div class="linhas">
@@ -1073,7 +1075,12 @@ function desenha() {
   }
   $('faixa').dataset.tipo = S.tipo || 'outro';
   $('rotulo').textContent = S.rotulo || (S.tipo ? TIPOS[S.tipo] : 'Tipo de serviço');
-  for (const b of $('chips').children) b.setAttribute('aria-pressed', String(b.dataset.id === S.tipo || (b.dataset.id === 'transporte' && S.tipo === 'transferencia')));
+  for (const b of $('chips').children) {
+    const on = b.dataset.id === S.tipo || (b.dataset.id === 'transporte' && S.tipo === 'transferencia');
+    b.setAttribute('aria-pressed', String(on));
+    b.hidden = !!S.tipo && !tiposAbertos && !on;
+    b.textContent = BOTOES.find(x => x[0] === b.dataset.id)[1] + (on && !tiposAbertos ? ' ▾' : '');
+  }
   $('linhaDestino').hidden = !S.campos.destino && !semCodu();
   $('linhaOrigem').hidden = !semCodu();
   document.querySelector('.linhas').classList.toggle('transp', semCodu());
@@ -1434,6 +1441,7 @@ function limpaHist() { hist = []; fut = []; ultimo = null; clearTimeout(esperaHi
 
 function novaOcorrencia() {
   limpaHist();
+  tiposAbertos = false; subAberto = false;
   largarMic();
   S = vazio();
   base = '';
@@ -1455,9 +1463,14 @@ const SUB = {
   incendio: [['Habitacional', 'Incêndio habitacional'], ['Florestal', 'Incêndio florestal'], ['Mato', 'Incêndio em mato'], ['Agrícola', 'Incêndio agrícola'], ['Viatura', 'Incêndio em viatura'], ['Industrial', 'Incêndio industrial'], ['Escola', 'Incêndio em escola'], ['Hotelaria', 'Incêndio em hotelaria'], ['Equipamentos', 'Incêndio em equipamentos'], ['Detritos', 'Incêndio em detritos'], ['Queimada', 'Queimada'], ['Rescaldo', 'Consolidação de rescaldo']],
   transporte: [['Alta', 'Alta hospitalar', 'transporte'], ['Transferência', 'Transferência', 'transferencia'], ['Consulta', 'Transporte para consulta', 'transporte'], ['Exame', 'Transporte para exame', 'transporte'], ['Cadáver', 'Transporte de cadáver', 'transporte']],
 };
+/* Depois de escolher o tipo, os outros escondem-se; o subtipo abre ao tocar, tal como os meios. */
+let tiposAbertos = false, subAberto = false;
 function desenhaSub() {
   const k = S.tipo === 'transferencia' ? 'transporte' : S.tipo, lista = SUB[k] || [], caixa = $('subChips');
-  caixa.hidden = !lista.length;
+  const escolhido = S.rotulo && S.rotulo !== TIPOS[S.tipo] && S.rotulo !== TIPOS[k];
+  $('subBotao').hidden = !lista.length || tiposAbertos;
+  $('subBotao').textContent = (escolhido ? S.rotulo : 'Escolher tipo') + ' ▾';
+  caixa.hidden = !lista.length || !subAberto || tiposAbertos;
   if (caixa.dataset.k !== k) {
     caixa.dataset.k = k;
     caixa.textContent = '';
@@ -1470,6 +1483,7 @@ function desenhaSub() {
         S.tipo = desmarca ? k : (tipo || k);
         S.rotulo = desmarca ? TIPOS[k] : rotulo;
         delete S.editados.desc;
+        subAberto = desmarca;
         atualiza(false);
       };
       caixa.appendChild(b);
@@ -1482,12 +1496,24 @@ for (const [id, nome] of BOTOES) {
   b.type = 'button'; b.dataset.id = id; b.textContent = nome;
   b.onclick = () => {
     if (S.exemplo) novaOcorrencia();
-    S.tipoManual = true; S.tipo = id;
-    S.rotulo = rotuloTipo(id, sem(S.texto));
+    const atual = b.getAttribute('aria-pressed') === 'true';
+    /* Tocar no tipo escolhido volta a mostrar todos, para trocar. */
+    if (atual && !tiposAbertos) { tiposAbertos = true; subAberto = false; desenha(); return; }
+    tiposAbertos = false;
+    if (!atual) {
+      S.tipoManual = true; S.tipo = id;
+      S.rotulo = rotuloTipo(id, sem(S.texto));
+    }
+    subAberto = !!SUB[id] && (!S.rotulo || S.rotulo === TIPOS[id]);
     atualiza(false);
   };
   $('chips').appendChild(b);
 }
+$('subBotao').onclick = () => { subAberto = !subAberto; desenha(); };
+document.addEventListener('pointerdown', e => {
+  if (!subAberto || $('subBotao').contains(e.target) || $('subChips').contains(e.target)) return;
+  subAberto = false; desenha();
+});
 for (const f of FREGS) { const o = document.createElement('option'); o.value = f.nome; $('freguesias').appendChild(o); }
 for (const m of ['ABSC 11', 'ABSC 12', 'ABSC 15', 'ABSC 07', 'ABSC 04', 'ABSC 18', 'VSAT 01']) {
   const b = document.createElement('button');
