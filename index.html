@@ -79,6 +79,7 @@ select { font: 500 15px/1 var(--body); min-height: 36px; border: 1.5px solid var
 #rotulo { font: 700 32px/1 var(--display); letter-spacing: .02em; text-transform: uppercase; text-wrap: balance; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chips button { min-height: 36px; padding: 0 10px; font: 600 14px/1 var(--body); background: transparent; color: var(--on-strong); border-color: var(--on-strong); }
+.chips.sub button { min-height: 32px; font-size: 13px; }
 .chips button[aria-pressed="true"] { background: var(--on-strong); color: var(--cor); }
 .linhas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .campo { padding: 8px 12px 6px; border-top: 1px solid var(--rule); min-width: 0; }
@@ -161,6 +162,9 @@ pre { white-space: pre-wrap; overflow-wrap: anywhere; font: 500 14px/1.45 var(--
 .recentes { background: var(--panel); border: 1px solid var(--rule); border-radius: 8px; padding: 12px 14px; display: grid; gap: 8px; }
 .recentes h2 { font: 700 20px/1 var(--display); margin: 0; }
 .recente { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; }
+.ferramentas { display: flex; flex-wrap: wrap; gap: 8px; }
+.recente { cursor: pointer; }
+.recente .lixo { min-width: 44px; font-size: 18px; }
 .recente span.h { font: 600 15px/1 var(--mono); font-variant-numeric: tabular-nums; }
 .recente span.d { overflow-wrap: anywhere; font-size: 15px; }
 footer { color: var(--muted); font-size: 13px; max-width: 72ch; }
@@ -186,6 +190,11 @@ footer { color: var(--muted); font-size: 13px; max-width: 72ch; }
     <button id="nova" type="button">Nova ocorrência</button>
     <button id="btnBloquear" type="button" hidden>Sair</button>
   </header>
+  <div class="ferramentas">
+    <button id="guardar" type="button">Guardar</button>
+    <button id="desfazer" type="button" disabled>↶ Desfazer</button>
+    <button id="refazer" type="button" disabled>↷ Refazer</button>
+  </div>
   <div class="aviso" id="avisoExemplo" hidden>Isto é um exemplo. Toque em Nova ocorrência para começar.</div>
 
   <div class="grelha">
@@ -213,6 +222,7 @@ footer { color: var(--muted); font-size: 13px; max-width: 72ch; }
       <div class="faixa" id="faixa" data-tipo="outro">
         <div id="rotulo">Tipo de serviço</div>
         <div class="chips" id="chips" role="group" aria-label="Tipo de serviço"></div>
+        <div class="chips sub" id="subChips" role="group" aria-label="Subtipo" hidden></div>
       </div>
       <div class="linhas">
         <div class="numeros">
@@ -222,7 +232,7 @@ footer { color: var(--muted); font-size: 13px; max-width: 72ch; }
         <div class="campo largo" data-f="freg"><div class="topo-campo"><label class="rotulo" for="f-freg">Freguesia ou localidade</label></div><input id="f-freg" list="freguesias" autocomplete="off"><datalist id="freguesias"></datalist></div>
         <div id="areaCartao" aria-live="polite" hidden></div>
         <div class="campo largo" data-f="ref"><div class="topo-campo"><label class="rotulo" for="f-ref">Ponto de referência</label></div><input id="f-ref" autocomplete="off" placeholder="Perto de, ao lado de"></div>
-        <div class="campo largo" data-f="origem" id="linhaOrigem" hidden><div class="topo-campo"><label class="rotulo" for="f-origem">Origem</label></div><input id="f-origem" list="origens" autocomplete="off"><datalist id="origens"><option value="Urgência"></option><option value="Pisos"></option><option value="Domicílio"></option></datalist></div>
+        <div class="campo largo" data-f="origem" id="linhaOrigem" hidden><div class="topo-campo"><label class="rotulo" for="f-origem">Origem</label></div><input id="f-origem" autocomplete="off"><div class="extras" id="origemChips" role="group" aria-label="Origem"></div></div>
         <div class="campo largo" data-f="destino" id="linhaDestino" hidden><div class="topo-campo"><label class="rotulo" for="f-destino">Destino</label></div><input id="f-destino" autocomplete="off"></div>
         <div class="campo largo" data-f="nome" id="linhaNome" hidden><div class="topo-campo"><label class="rotulo" for="f-nome">Utente</label></div><input id="f-nome" autocomplete="off"></div>
         <div class="campo largo" data-f="setor" id="linhaSetor" hidden>
@@ -240,6 +250,7 @@ footer { color: var(--muted); font-size: 13px; max-width: 72ch; }
           <div class="campo" data-f="contacto"><div class="topo-campo"><label class="rotulo" for="f-contacto">Contactante</label></div><input class="num" id="f-contacto" list="contactantes" autocomplete="off"><datalist id="contactantes"><option value="112"></option><option value="117"></option><option value="PSP"></option><option value="GNR"></option><option value="Urgência"></option><option value="Piso 1"></option><option value="Piso 3"></option><option value="Piso 5"></option><option value="Consulta externa"></option></datalist></div>
           <div class="campo" data-f="prio" id="linhaPrio"><div class="topo-campo"><label class="rotulo" for="f-prio">Prioridade</label></div><input class="num" id="f-prio" autocomplete="off"></div>
         </div>
+        <div class="campo largo" id="meioBloco"><div class="extras" id="meioChips" role="group" aria-label="Meios de emergência"></div></div>
         <div class="campo largo" id="prioBloco">
           <div class="prio-chips" id="prioChips" role="group" aria-label="Prioridade da triagem"></div>
         </div>
@@ -349,7 +360,7 @@ function detetaTipo(n) {
   const fortes = [
     ['transferencia', /\btransferencias?\b/],
     ['transporte', /\btransportes?\b|\bhemodialise\b|\bconsulta\b|\bexames?\b|\bdomicilio\b|\bpara casa\b|\balta medica\b|\balta para\b|\baltas?\s+d[ao]\b|\b(?:vai de|teve|de) alta\b|\bcadaver(?:es)?\b|\bobito\b/],
-    ['incendio', /\bincendios?\b|\bfogo\b|\bchamas\b|\ba arder\b/],
+    ['incendio', /\bincendios?\b|\bfogo\b|\bchamas\b|\ba arder\b|\bqueimadas?\b|\brescaldo\b/],
     ['acidente', /\bacidentes?\b|\bcolisao\b|\bdespist\w+\b|\bcapotamento\b|\batropelamento\b/],
     ['outro', /\binundac\w+\b|\bcheia\b|\bqueda de arvore\b|\babertura de porta\b|\bsalvamento\b|\bdesencarceramento\b|\blimpeza de via\b|\babastecimento de agua\b|\bfuga de gas\b/],
   ];
@@ -362,10 +373,19 @@ function detetaTipo(n) {
 
 function rotuloTipo(id, n) {
   if (id === 'incendio') {
-    if (/\bmato\b|\bfloresta\w*\b|\bmata\b|\bmonte\b/.test(n)) return 'Incêndio florestal';
-    if (/\bhabitacao\b|\bcasa\b|\bapartamento\b|\bpredio\b|\bedificio\b|\burbano\b|\bcozinha\b|\bchamine\b/.test(n)) return 'Incêndio urbano';
-    if (/\bcarro\b|\bviatura\b|\bveiculo\b|\bautomovel\b|\bcamiao\b|\bmota\b/.test(n)) return 'Incêndio em veículo';
-    if (/\bfabrica\b|\barmazem\b|\bempresa\b|\bindustrial\b/.test(n)) return 'Incêndio industrial';
+    /* Os mesmos subtipos dos botões, seguindo a classificação das ocorrências. */
+    if (/\brescaldo\b/.test(n)) return 'Consolidação de rescaldo';
+    if (/\bqueimadas?\b|\bqueima\b/.test(n)) return 'Queimada';
+    if (/\bdetritos\b|\blixo\b|\bcontentor\w*\b|\bentulho\b/.test(n)) return 'Incêndio em detritos';
+    if (/\bmato\b|\bsilvas\b|\bsilvado\b/.test(n)) return 'Incêndio em mato';
+    if (/\bfloresta\w*\b|\bmata\b|\bmonte\b|\bpinhal\b|\beucalipt\w*\b/.test(n)) return 'Incêndio florestal';
+    if (/\bagricola\b|\bpalha\b|\bfeno\b|\bcultura\w*\b|\blavoura\b|\bmilho\b/.test(n)) return 'Incêndio agrícola';
+    if (/\bescola\b|\bcolegio\b/.test(n)) return 'Incêndio em escola';
+    if (/\bhotel\w*\b|\brestaurante\b|\bcafe\b/.test(n)) return 'Incêndio em hotelaria';
+    if (/\bcarro\b|\bviatura\b|\bveiculo\b|\bautomovel\b|\bcamiao\b|\bmota\b|\brodoviario\b/.test(n)) return 'Incêndio em viatura';
+    if (/\bfabrica\b|\barmazem\b|\bempresa\b|\bindustrial\b|\boficina\b/.test(n)) return 'Incêndio industrial';
+    if (/\bequipamentos?\b|\bquadro eletrico\b|\bposte\b|\btransformador\b/.test(n)) return 'Incêndio em equipamentos';
+    if (/\bhabitacao\b|\bhabitacional\b|\bcasa\b|\bapartamento\b|\bpredio\b|\bedificio\b|\burbano\b|\bcozinha\b|\bchamine\b/.test(n)) return 'Incêndio habitacional';
   }
   if (id === 'acidente' && /\bviacao\b|\bcolisao\b|\bdespist\w+\b|\bcapotamento\b|\batropelamento\b|\bcarro\b|\bmota\b|\bligeiro\b|\bpesado\b/.test(n)) return 'Acidente de viação';
   if (id === 'transferencia') {
@@ -394,6 +414,8 @@ function cues(tipo) {
     { f: 'local', solo: 1, canon: 1, re: new RegExp('^(?:emergencias?(?:\\s+medicas?)?[\\s,:-]+)?(' + LUGAR_ALT + ')\\b(?![\\s,]*\\d{1,2}(?![\\d:h]))', 'g') },
     { f: 'sexo', re: /\b([mf])\s?(\d{1,3})\b/g },
     { f: 'meio', drop: 1, re: /\b(?:vai|vao|sai|segue)\s+(?:[oa]\s+)?(barcelos|barcelinhos|viatodos)[\s,]*(\d{1,2}|um|dois|tres|quatro|cinco|seis|sete|oito|nove)\b/g },
+    { f: 'meio', drop: 1, re: /\b(v\s?-?\s?sat)(?:\s*0?([1-9]))?\b/g },
+    { f: 'meio', drop: 1, re: /\b(meio)\s+(?:e\s+)?(?:o\s+)?([1-9]|um|dois|tres|quatro|cinco|seis|sete|oito|nove)\b(?![:h\d])/g },
     /* "Barcelos 3" sozinho, sem "vai": só um algarismo e nunca dentro de uma morada. */
     { f: 'meio', drop: 1, not: /\b(?:rua|avenida|travessa|largo|praceta|estrada|em|n[oa]|para|de|do|da)\s$/, re: /\b(barcelos|barcelinhos|viatodos)[\s,]+([1-9]|um|dois|tres|quatro|cinco|seis|sete|oito|nove)\b(?![:h\d])/g },
     { f: 'local', solo: 1, canon: 1, re: new RegExp('\\b(?:emergencias?(?:\\s+medicas?)?|acidentes?|incendios?|ocorrencias?|servicos?)\\s+(?:para|em|n[oa])\\s+(' + LUGAR_ALT + ')\\b', 'g') },
@@ -435,7 +457,8 @@ function cues(tipo) {
     lista.push({ f: 'extra', id: 'acomp', drop: 1, re: /\b(?:(?:com|c\/)\s*)?acompanhantes?\b/g });
     lista.push({ f: 'extra', id: 'o2', drop: 1, re: /\b(?:com|c\/)\s*(?:oxigenio|o\s?(?:2|dois))\b|\b(?:oxigenio|o2)\s+sim\b/g });
     lista.push({ f: 'extra', id: 'rodas', drop: 1, re: /\b(?:(?:com|c\/|em)\s*)?(?:cadeira de rodas|rodas)\b/g });
-    lista.push({ f: 'local', re: /\b(?:d[oa]s?|de|desde)\s+(?:[oa]\s+)?(hospital|urgencia|pisos?|centro de saude|clinica|lar|casa|domicilio|maternidade)\b/g });
+    lista.push({ f: 'local', re: /\b(?:d[oa]s?|de|desde)\s+(?:[oa]\s+)?(consultas? externas?|hospital|urgencia|pisos?(?:\s+(?:\d|tres|quatro|cinco))?|centro de saude|clinica|lar|casa|domicilio|maternidade)\b/g });
+    lista.push({ f: 'local', origem2: 1, re: /\b(pisos?\s+(?:\d|tres|quatro|cinco))\b/g });
     lista.push({ f: 'local', drop: 1, origem: 1, re: /\b(?:origem|desde|recolher?(?:\s+(?:n[oa]|em))?|buscar(?:\s+(?:a[oa]?|n[oa]))?)\b[\s:.-]*/g });
     lista.push({ f: 'local', drop: 1, origem: 1, re: /\bd[ae]\s+(?=(?:rua|avenida|travessa|largo)\b)/g });
     lista.push({ f: 'local', solo: 1, canon: 1, not: /\b(?:hospital|clinica|saude|maternidade|bombeiros|rua|avenida|travessa|largo|bairro|lugar|campo|estrada)\s$/, re: new RegExp('\\b(?:de|desde)\\s+(' + LUGAR_ALT.split('|').filter(l => !VAGOS.has(l)).join('|') + ')\\b', 'g') });
@@ -556,6 +579,18 @@ function semRepetir(s) {
 
 /* Ao CODU diz-se Barcelos 3; no quartel, e no cartão, é ABSC 11. */
 const MEIOS = { 'barcelos 3': 'ABSC 11', 'barcelos 4': 'ABSC 12', 'barcelos 5': 'ABSC 15', 'barcelos 6': 'ABSC 07', 'barcelos 7': 'ABSC 18', 'barcelos 8': 'ABSC 04' };
+/* Saídas do Hospital de Barcelos: urgência, pisos (3º Ortopedia, 4º Medicina, 5º Cirurgia) e consultas externas. */
+const PISOS = { 3: 'Ortopedia', 4: 'Medicina', 5: 'Cirurgia' };
+function origemHosp(v) {
+  const n = sem(v || '');
+  const p = /\bpisos?\s*(\d|tres|quatro|cinco)\b/.exec(n);
+  if (p) return 'Hospital de Barcelos – Piso ' + (p[1] in DIG ? DIG[p[1]] : p[1]);
+  if (/^urgencia/.test(n)) return 'Hospital de Barcelos – Urgência';
+  if (/^pisos?$/.test(n)) return 'Hospital de Barcelos – Pisos';
+  if (/^consultas? externas?/.test(n)) return 'Hospital de Barcelos – Consultas Externas';
+  if (/^hospital (?:de )?barcelos/.test(n)) return 'Hospital de Barcelos';
+  return v;
+}
 const meioQuartel = v => (v || '').split(/,\s*/).map(m => MEIOS[sem(m.trim())] || m.trim()).filter((m, i, l) => m && l.indexOf(m) === i).join(', ');
 
 function distancia(a, b) {
@@ -645,7 +680,7 @@ function parseOcorrencia(texto) {
       const resto = t.slice(h.fim, fim).replace(/^[,\s]+/, '');
       partes.push({ ini: h.ini, fim, s: (h.m[1] === 'm' ? 'Masculino' : 'Feminino') + ' de ' + h.m[2] + ', ' + resto });
     } else if (f === 'meio') {
-      const nome = h.m[1].charAt(0).toUpperCase() + h.m[1].slice(1) + ' ' + (h.m[2] in DIG ? DIG[h.m[2]] : h.m[2]);
+      const nome = /^v/.test(h.m[1]) ? 'VSAT 0' + (h.m[2] || '1') : (h.m[1] === 'meio' ? 'Barcelos' : h.m[1].charAt(0).toUpperCase() + h.m[1].slice(1)) + ' ' + (h.m[2] in DIG ? DIG[h.m[2]] : h.m[2]);
       r.meio = meioQuartel(r.meio ? r.meio + ', ' + nome : nome);
     } else if (f === 'setor') {
       r.setor = SETORES.find(s => sem(s) === h.m[1]);
@@ -712,9 +747,12 @@ function parseOcorrencia(texto) {
   const unir = l => l.filter((v, i) => !l.some((o, j) => j !== i && sem(o).includes(sem(v)) && (o.length > v.length || j < i))).join(', ');
   /* Hospital, urgência ou pisos de onde sai o doente são a origem, não a morada. */
   if (transp) {
-    const saida = v => /^(?:urgencia|pisos?|hospital\b|centro de saude|clinica|lar\b)/.test(sem(v));
+    const saida = v => /^(?:urgencia|pisos?|consultas? externas?|hospital\b|centro de saude|clinica|lar\b)/.test(sem(v));
     const orig = ruas.filter(saida);
-    if (orig.length) { r.origem = orig[orig.length - 1]; ruas.splice(0, ruas.length, ...ruas.filter(v => !saida(v))); }
+    if (orig.length) {
+      r.origem = origemHosp(orig[orig.length - 1]);
+      const piso = /Piso (\d)$/.exec(r.origem);
+      if (piso && !r.setor && PISOS[piso[1]]) r.setor = PISOS[piso[1]]; ruas.splice(0, ruas.length, ...ruas.filter(v => !saida(v))); }
   }
   /* Numa alta ou ida para casa ou lar, o destino é Domicílio ou o lar, e a rua dita vai para a Morada. */
   const CASA = /^(?:casa|lar|domicilio)$/;
@@ -1007,14 +1045,19 @@ function desenha() {
   }
   $('faixa').dataset.tipo = S.tipo || 'outro';
   $('rotulo').textContent = S.rotulo || (S.tipo ? TIPOS[S.tipo] : 'Tipo de serviço');
-  for (const b of $('chips').children) b.setAttribute('aria-pressed', String(b.dataset.id === S.tipo));
+  for (const b of $('chips').children) b.setAttribute('aria-pressed', String(b.dataset.id === S.tipo || (b.dataset.id === 'transporte' && S.tipo === 'transferencia')));
   $('linhaDestino').hidden = !S.campos.destino && !semCodu();
   $('linhaOrigem').hidden = !semCodu();
   document.querySelector('.linhas').classList.toggle('transp', semCodu());
   /* CODU nunca existe em transporte nem em transferência. */
   $('linhaCodu').hidden = semCodu() || !(!S.tipo || S.tipo === 'emergencia' || S.campos.codu);
   $('linhaPrio').hidden = $('prioBloco').hidden = !(S.tipo === 'emergencia' || S.campos.prio);
-  $('linhaMeio').hidden = !(!S.tipo || COM_AREA.includes(S.tipo) || S.campos.meio);
+  /* Pode sair mais de um meio em qualquer ocorrência que não seja transporte. */
+  $('linhaMeio').hidden = $('meioBloco').hidden = semCodu() && !S.campos.meio;
+  const meios = meioQuartel(S.campos.meio).split(', ');
+  for (const b of $('meioChips').children) b.setAttribute('aria-pressed', String(meios.includes(b.textContent)));
+  for (const b of $('origemChips').children) b.setAttribute('aria-pressed', String(S.campos.origem === b.dataset.v));
+  desenhaSub();
   $('linhaExtras').hidden = $('linhaSetor').hidden = !comExtras();
   $('linhaNome').hidden = !semCodu();
   document.querySelector('label[for="f-desc"]').textContent = semCodu() ? 'Tipo' : 'Circunstâncias';
@@ -1047,6 +1090,7 @@ function desenha() {
   $('partilhar').disabled = semDados;
   desenhaEquipa(wa, semDados);
   sessao.gravar('cartao.rascunho', S);
+  marca();
 }
 
 const temConteudo = () => CAMPOS.some(f => f !== 'hora' && S.campos[f]) || !!S.tipo;
@@ -1157,7 +1201,9 @@ function mensagem(modo) {
     if (c.freg) linhas.push(c.freg + (c.hora ? ' · ' + c.hora : '')); else add('Hora', c.hora);
     add('Morada', c.rua); add('Referência', c.ref); add('Destino', c.destino); add('Circunstâncias', c.desc);
   }
-  add('Prioridade', (c.prio || '').trim().toUpperCase()); if (!transporte) { add('CODU', c.codu); add('Meio', meioQuartel(c.meio)); }
+  const prio = (c.prio || '').trim().toUpperCase();
+  if (prio && !transporte) linhas.push(prio);
+  if (!transporte) { add('CODU', c.codu); add('Meio', meioQuartel(c.meio)); }
   const cob = cobranca();
   if (cob && cob.estado === 'cobrar') add('Cobrar', euros(cob.valor) || 'valor por confirmar');
   add('Mapa', linkMapa());
@@ -1250,8 +1296,18 @@ function desenhaRecentes() {
     const h = document.createElement('span'); h.className = 'h'; h.textContent = c.S.campos.hora || '--:--';
     const d = document.createElement('span'); d.className = 'd';
     d.textContent = (c.S.rotulo || 'Ocorrência') + (c.S.campos.local ? ' · ' + c.S.campos.local : '');
-    const b = document.createElement('button'); b.type = 'button'; b.textContent = 'Abrir';
-    b.onclick = () => { largarMic(); S = Object.assign(vazio(), c.S); if (!('rua' in S.campos)) S.campos.rua = S.campos.local; $('texto').value = S.texto; base = S.texto; desenha(); scrollTo({ top: 0 }); };
+    linha.setAttribute('role', 'button'); linha.tabIndex = 0;
+    linha.setAttribute('aria-label', 'Abrir ' + d.textContent);
+    linha.onclick = () => { largarMic(); limpaHist(); S = Object.assign(vazio(), c.S); if (!('rua' in S.campos)) S.campos.rua = S.campos.local; $('texto').value = S.texto; base = S.texto; desenha(); scrollTo({ top: 0 }); };
+    linha.onkeydown = e => { if (e.key === 'Enter') linha.onclick(); };
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'lixo'; b.textContent = '🗑';
+    b.setAttribute('aria-label', 'Apagar ' + d.textContent);
+    b.onclick = e => {
+      e.stopPropagation();
+      if (!confirm('Apagar este cartão?')) return;
+      gravar('cartao.recentes', ler('cartao.recentes', []).filter(x => x.id !== c.id));
+      desenhaRecentes();
+    };
     linha.append(h, d, b);
     caixa.appendChild(linha);
   }
@@ -1320,7 +1376,33 @@ function pararMic() { aOuvir = false; if (rec) { try { rec.stop(); } catch {} } 
 /* Corta o ditado sem deixar a última fala cair no cartão seguinte. */
 function largarMic() { aOuvir = false; if (rec) { rec.onresult = null; try { rec.abort(); } catch {} } }
 
+/* Desfazer e refazer: guarda o estado do cartão depois de cada pausa nas alterações. */
+let hist = [], fut = [], ultimo = null, esperaHist = 0, aplicando = false;
+const botoesHist = () => { $('desfazer').disabled = !hist.length && !esperaHist; $('refazer').disabled = !fut.length; };
+function fixa() {
+  clearTimeout(esperaHist); esperaHist = 0;
+  const s = JSON.stringify(S);
+  if (s !== ultimo) { if (ultimo !== null) { hist.push(ultimo); if (hist.length > 50) hist.shift(); fut = []; } ultimo = s; }
+  botoesHist();
+}
+function marca() {
+  if (aplicando) return;
+  clearTimeout(esperaHist);
+  esperaHist = setTimeout(fixa, 700);
+  botoesHist();
+}
+function aplicaEstado(s) {
+  aplicando = true;
+  S = Object.assign(vazio(), JSON.parse(s));
+  $('texto').value = S.texto; base = S.texto;
+  desenha();
+  aplicando = false;
+  botoesHist();
+}
+function limpaHist() { hist = []; fut = []; ultimo = null; clearTimeout(esperaHist); esperaHist = 0; }
+
 function novaOcorrencia() {
+  limpaHist();
   largarMic();
   S = vazio();
   base = '';
@@ -1333,7 +1415,35 @@ function novaOcorrencia() {
 }
 
 /* Ligações */
-for (const [id, nome] of Object.entries(TIPOS)) {
+/* Transporte e transferência ficam num só botão; o subtipo escolhe-se por baixo. */
+const BOTOES = [['emergencia', 'Emergência médica'], ['incendio', 'Incêndio'], ['acidente', 'Acidente'], ['transporte', 'Transportes'], ['outro', 'Outro serviço']];
+const SUB = {
+  incendio: [['Habitacional', 'Incêndio habitacional'], ['Florestal', 'Incêndio florestal'], ['Mato', 'Incêndio em mato'], ['Agrícola', 'Incêndio agrícola'], ['Viatura', 'Incêndio em viatura'], ['Industrial', 'Incêndio industrial'], ['Escola', 'Incêndio em escola'], ['Hotelaria', 'Incêndio em hotelaria'], ['Equipamentos', 'Incêndio em equipamentos'], ['Detritos', 'Incêndio em detritos'], ['Queimada', 'Queimada'], ['Rescaldo', 'Consolidação de rescaldo']],
+  transporte: [['Alta', 'Alta hospitalar', 'transporte'], ['Transferência', 'Transferência', 'transferencia'], ['Consulta', 'Transporte para consulta', 'transporte'], ['Exame', 'Transporte para exame', 'transporte'], ['Cadáver', 'Transporte de cadáver', 'transporte']],
+};
+function desenhaSub() {
+  const k = S.tipo === 'transferencia' ? 'transporte' : S.tipo, lista = SUB[k] || [], caixa = $('subChips');
+  caixa.hidden = !lista.length;
+  if (caixa.dataset.k !== k) {
+    caixa.dataset.k = k;
+    caixa.textContent = '';
+    for (const [nome, rotulo, tipo] of lista) {
+      const b = document.createElement('button');
+      b.type = 'button'; b.textContent = nome; b.dataset.r = rotulo;
+      b.onclick = () => {
+        const desmarca = b.getAttribute('aria-pressed') === 'true';
+        S.tipoManual = true;
+        S.tipo = desmarca ? k : (tipo || k);
+        S.rotulo = desmarca ? TIPOS[k] : rotulo;
+        delete S.editados.desc;
+        atualiza(false);
+      };
+      caixa.appendChild(b);
+    }
+  }
+  for (const b of caixa.children) b.setAttribute('aria-pressed', String(S.rotulo === b.dataset.r || (k === 'transporte' && motivoDe(S.rotulo) === motivoDe(b.dataset.r) && S.rotulo !== TIPOS[S.tipo])));
+}
+for (const [id, nome] of BOTOES) {
   const b = document.createElement('button');
   b.type = 'button'; b.dataset.id = id; b.textContent = nome;
   b.onclick = () => {
@@ -1345,6 +1455,29 @@ for (const [id, nome] of Object.entries(TIPOS)) {
   $('chips').appendChild(b);
 }
 for (const f of FREGS) { const o = document.createElement('option'); o.value = f.nome; $('freguesias').appendChild(o); }
+for (const m of ['ABSC 11', 'ABSC 12', 'ABSC 15', 'ABSC 07', 'ABSC 04', 'ABSC 18', 'VSAT 01']) {
+  const b = document.createElement('button');
+  b.type = 'button'; b.textContent = m;
+  b.onclick = () => {
+    const l = meioQuartel(S.campos.meio).split(', ').filter(Boolean);
+    S.campos.meio = (l.includes(m) ? l.filter(x => x !== m) : l.concat(m)).join(', ');
+    if (S.campos.meio) S.editados.meio = true; else delete S.editados.meio;
+    desenha();
+  };
+  $('meioChips').appendChild(b);
+}
+for (const [nome, v, setor] of [['Urgência', 'Hospital de Barcelos – Urgência'], ['Piso 3 · Ortopedia', 'Hospital de Barcelos – Piso 3', 'Ortopedia'], ['Piso 4 · Medicina', 'Hospital de Barcelos – Piso 4', 'Medicina'], ['Piso 5 · Cirurgia', 'Hospital de Barcelos – Piso 5', 'Cirurgia'], ['Consultas Externas', 'Hospital de Barcelos – Consultas Externas'], ['Domicílio', 'Domicílio']]) {
+  const b = document.createElement('button');
+  b.type = 'button'; b.textContent = nome; b.dataset.v = v;
+  b.onclick = () => {
+    const desmarca = S.campos.origem === v;
+    S.campos.origem = desmarca ? '' : v;
+    if (desmarca) delete S.editados.origem; else S.editados.origem = true;
+    if (setor && !desmarca) { S.campos.setor = setor; S.editados.setor = true; }
+    desenha();
+  };
+  $('origemChips').appendChild(b);
+}
 for (const s of SETORES) {
   const b = document.createElement('button');
   b.type = 'button'; b.textContent = s;
@@ -1426,6 +1559,9 @@ $('mic').onclick = () => {
   comecarMic();
 };
 $('nova').onclick = novaOcorrencia;
+$('guardar').onclick = () => { guardaRecente(); $('feedback').textContent = 'Cartão guardado nos cartões das últimas 24 horas.'; };
+$('desfazer').onclick = () => { if (esperaHist) fixa(); if (!hist.length) return; fut.push(ultimo); ultimo = hist.pop(); aplicaEstado(ultimo); };
+$('refazer').onclick = () => { if (!fut.length) return; hist.push(ultimo); ultimo = fut.pop(); aplicaEstado(ultimo); };
 $('procurar').onclick = procuraPonto;
 $('lingua').onchange = e => gravar('cartao.lingua', e.target.value);
 $('lingua').value = ler('cartao.lingua', 'pt-BR');
