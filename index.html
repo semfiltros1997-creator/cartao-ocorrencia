@@ -354,7 +354,7 @@ function areaDe(txt) {
   return (achados.find(a => a.f.fala !== 'barcelos') || achados[0]).f;
 }
 
-const TIPOS = { incendio: 'Incêndio', acidente: 'Acidente', emergencia: 'Emergência médica', transferencia: 'Transferência', transporte: 'Transporte', outro: 'Outro serviço' };
+const TIPOS = { incendio: 'Incêndio', acidente: 'Acidente de viação', emergencia: 'Emergência médica', transferencia: 'Transferência', transporte: 'Transporte', outro: 'Outro serviço' };
 
 function detetaTipo(n) {
   const fortes = [
@@ -362,7 +362,7 @@ function detetaTipo(n) {
     ['transporte', /\btransportes?\b|\bhemodialise\b|\bconsulta\b|\bexames?\b|\bdomicilio\b|\bpara casa\b|\balta medica\b|\balta para\b|\baltas?\s+d[ao]\b|\b(?:vai de|teve|de) alta\b|\bcadaver(?:es)?\b|\bobito\b/],
     ['incendio', /\bincendios?\b|\bfogo\b|\bchamas\b|\ba arder\b|\bqueimadas?\b|\brescaldo\b/],
     ['acidente', /\bacidentes?\b|\bcolisao\b|\bdespist\w+\b|\bcapotamento\b|\batropelamento\b/],
-    ['outro', /\binundac\w+\b|\bcheia\b|\bqueda de arvore\b|\babertura de porta\b|\bsalvamento\b|\bdesencarceramento\b|\blimpeza de via\b|\babastecimento de agua\b|\bfuga de gas\b/],
+    ['outro', /\binundac\w+\b|\bcheia\b|\bqueda de arvore\b|\babertura de porta\b|\bsalvamento\b|\bdesencarceramento\b|\blimpeza de via\b|\babastecimento de agua\b|\bfuga de gas\b|\belevador\b|\bbuscas?\b|\bresgate\b|\bpatrulhamento\b|\bpiquete\b|\bcamarata\b|\blimpeza de via\b|\breboque\b/],
   ];
   let melhor = null, pos = Infinity;
   for (const [id, re] of fortes) { const m = re.exec(n); if (m && m.index < pos) { pos = m.index; melhor = id; } }
@@ -387,7 +387,35 @@ function rotuloTipo(id, n) {
     if (/\bequipamentos?\b|\bquadro eletrico\b|\bposte\b|\btransformador\b/.test(n)) return 'Incêndio em equipamentos';
     if (/\bhabitacao\b|\bhabitacional\b|\bcasa\b|\bapartamento\b|\bpredio\b|\bedificio\b|\burbano\b|\bcozinha\b|\bchamine\b/.test(n)) return 'Incêndio habitacional';
   }
-  if (id === 'acidente' && /\bviacao\b|\bcolisao\b|\bdespist\w+\b|\bcapotamento\b|\batropelamento\b|\bcarro\b|\bmota\b|\bligeiro\b|\bpesado\b/.test(n)) return 'Acidente de viação';
+  /* Subtipos da lista de códigos da central: os mesmos dos botões. */
+  if (id === 'acidente') {
+    if (/\batropel\w+\b/.test(n) && /\bcomboio\b|\bferrovi\w+\b|\blinha\b/.test(n)) return 'Atropelamento ferroviário';
+    if (/\batropel\w+\b/.test(n)) return 'Atropelamento rodoviário';
+    if (/\bcolisao\b|\bchoque\b|\bembat\w+\b/.test(n)) return 'Colisão rodoviária';
+    if (/\bdespist\w+\b|\bcapot\w+\b/.test(n)) return 'Despiste';
+    if (/\bfora de estrada\b|\btrator\b|\bmoto 4\b|\bmoto quatro\b/.test(n)) return 'Acidente fora de estrada';
+  }
+  if (id === 'emergencia') {
+    if (/\bsuicid\w+\b/.test(n)) return /\bconsumad\w+\b|\bfalec\w+\b|\bmorreu\b/.test(n) ? 'Suicídio consumado' : 'Tentativa de suicídio';
+    if (/\bpre afogamento\b/.test(n)) return 'Pré-afogamento';
+    if (/\bafogad\w*\b|\bafogamento\b/.test(n)) return 'Afogamento';
+    if (/\btrabalho de parto\b|\bparto\b|\bcontracoes\b/.test(n)) return 'Trabalho de parto';
+    if (/\bqueimad(?:o|a|os|as|ura|uras)\b/.test(n)) return 'Queimadura';
+    if (/\bintoxica\w+\b|\boverdose\b|\bingeriu\b/.test(n)) return 'Intoxicação';
+    if (/\bagress\w+\b|\bagredid\w+\b|\bviolacao\b/.test(n)) return 'Agressão';
+    if (/\btrauma\w*\b|\btce\b|\bqueda\b|\bcaiu\b|\bfratura\b/.test(n)) return 'Trauma';
+  }
+  if (id === 'outro') {
+    if (/\babertura de porta\b|\babrir (?:a )?porta\b/.test(n)) return /\bsocorro\b|\bmal\b|\bcai\w*\b|\binconsciente\b|\bnao responde\b|\bdoente\b/.test(n) ? 'Abertura de porta com socorro' : 'Abertura de porta sem socorro';
+    if (/\blimpeza de via\b|\boleo na (?:via|estrada)\b|\bsinaliza\w+\b/.test(n)) return 'Limpeza de via e sinalização de perigo';
+    if (/\breboque\b|\bdesempanag\w+\b/.test(n)) return 'Reboque e desempanagem';
+    if (/\belevador\b/.test(n)) return 'Abertura de elevador';
+    if (/\bqueda de arvore\b|\barvore caida\b/.test(n)) return 'Queda de árvore';
+    if (/\bfuga de gas\b|\bcheiro a gas\b/.test(n)) return 'Fuga de gás';
+    if (/\binundac\w+\b|\bcheia\b/.test(n)) return 'Inundação';
+    if (/\bbuscas?\b|\bresgate\b|\bdesaparecid\w+\b/.test(n)) return 'Busca e resgate';
+    if (/\bpiquete\b|\bcamarata\b/.test(n)) return 'Piquete / Camarata';
+  }
   if (id === 'transferencia') {
     if (/\bmedicalizad\w+\b/.test(n)) return 'Transferência medicalizada';
     if (/\burgencia\b/.test(n)) return 'Transferência da urgência';
@@ -1189,7 +1217,9 @@ function linkMapa() {
 
 function mensagem(modo) {
   const c = S.campos, transporte = semCodu();
-  const nome = transporte ? 'TRANSPORTE' : (S.rotulo || (S.tipo ? TIPOS[S.tipo] : 'Ocorrência')).toUpperCase();
+  /* Na emergência o subtipo junta-se ao tipo: EMERGÊNCIA MÉDICA – TRAUMA. */
+  const sub = S.tipo === 'emergencia' && S.rotulo && S.rotulo !== TIPOS.emergencia ? TIPOS.emergencia + ' – ' + S.rotulo : S.rotulo;
+  const nome = transporte ? 'TRANSPORTE' : (sub || (S.tipo ? TIPOS[S.tipo] : 'Ocorrência')).toUpperCase();
   const linhas = [modo === 'wa' ? '*' + nome + '*' : nome];
   const add = (r, v) => { if (v) linhas.push(r + ': ' + v); };
   if (transporte) {
@@ -1416,8 +1446,11 @@ function novaOcorrencia() {
 
 /* Ligações */
 /* Transporte e transferência ficam num só botão; o subtipo escolhe-se por baixo. */
-const BOTOES = [['emergencia', 'Emergência médica'], ['incendio', 'Incêndio'], ['acidente', 'Acidente'], ['transporte', 'Transportes'], ['outro', 'Outro serviço']];
+const BOTOES = [['emergencia', 'Emergência médica'], ['incendio', 'Incêndio'], ['acidente', 'Acidente de viação'], ['transporte', 'Transportes'], ['outro', 'Outro serviço']];
 const SUB = {
+  emergencia: [['Doença súbita', 'Doença súbita'], ['Trauma', 'Trauma'], ['Intoxicação', 'Intoxicação'], ['Queimadura', 'Queimadura'], ['Parto', 'Trabalho de parto'], ['Pré-afogamento', 'Pré-afogamento'], ['Afogamento', 'Afogamento'], ['Agressão', 'Agressão'], ['Tentativa de suicídio', 'Tentativa de suicídio'], ['Suicídio consumado', 'Suicídio consumado']],
+  acidente: [['Colisão', 'Colisão rodoviária'], ['Despiste', 'Despiste'], ['Atropelamento', 'Atropelamento rodoviário'], ['Fora de estrada', 'Acidente fora de estrada'], ['Atropelamento ferroviário', 'Atropelamento ferroviário']],
+  outro: [['Porta c/ socorro', 'Abertura de porta com socorro'], ['Porta s/ socorro', 'Abertura de porta sem socorro'], ['Elevador', 'Abertura de elevador'], ['Limpeza de via', 'Limpeza de via e sinalização de perigo'], ['Reboque', 'Reboque e desempanagem'], ['Queda de árvore', 'Queda de árvore'], ['Perigo de queda', 'Corte ou remoção de elementos em perigo de queda'], ['Queda de estruturas', 'Queda de estruturas edificadas'], ['Movimento de massa', 'Movimento de massa'], ['Inundação', 'Inundação'], ['Água canalizada', 'Inundação por água canalizada'], ['Desentupimento', 'Desentupimento / tamponamento'], ['Fuga de gás', 'Fuga de gás'], ['Corte de água', 'Corte de abastecimento de água'], ['Corte elétrico', 'Corte de abastecimento elétrico'], ['Corte de gás', 'Corte de abastecimento de gás'], ['Abastecimento de água', 'Abastecimento de água'], ['Evacuação', 'Evacuação'], ['Busca de pessoas', 'Busca e resgate de pessoas'], ['Busca aquática', 'Busca e resgate aquático de pessoas'], ['Resgate de animais', 'Busca e resgate de animais'], ['Assistência à população', 'Assistência à população e apoio social'], ['Apoio às forças de segurança', 'Apoio às forças de segurança'], ['Prevenção', 'Prevenção a atividades / ação de sensibilização'], ['Prevenção a queimadas', 'Prevenção a queimadas'], ['Acompanhamento de transportes', 'Acompanhamento de transportes'], ['Patrulhamento', 'Patrulhamento, reconhecimento e vigilância'], ['Pré-posicionamento', 'Pré-posicionamento de meios'], ['Pré-posicionamento DECIR', 'Pré-posicionamento de meios DECIR'], ['Rendição de meios', 'Rendição de meios'], ['Deslocação para formação', 'Deslocação em formação'], ['Deslocação oficial', 'Deslocação oficial'], ['Piquete / Camarata', 'Piquete / Camarata']],
   incendio: [['Habitacional', 'Incêndio habitacional'], ['Florestal', 'Incêndio florestal'], ['Mato', 'Incêndio em mato'], ['Agrícola', 'Incêndio agrícola'], ['Viatura', 'Incêndio em viatura'], ['Industrial', 'Incêndio industrial'], ['Escola', 'Incêndio em escola'], ['Hotelaria', 'Incêndio em hotelaria'], ['Equipamentos', 'Incêndio em equipamentos'], ['Detritos', 'Incêndio em detritos'], ['Queimada', 'Queimada'], ['Rescaldo', 'Consolidação de rescaldo']],
   transporte: [['Alta', 'Alta hospitalar', 'transporte'], ['Transferência', 'Transferência', 'transferencia'], ['Consulta', 'Transporte para consulta', 'transporte'], ['Exame', 'Transporte para exame', 'transporte'], ['Cadáver', 'Transporte de cadáver', 'transporte']],
 };
