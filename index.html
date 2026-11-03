@@ -554,6 +554,10 @@ function semRepetir(s) {
   return v;
 }
 
+/* Ao CODU diz-se Barcelos 3; no quartel, e no cartão, é ABSC 11. */
+const MEIOS = { 'barcelos 3': 'ABSC 11', 'barcelos 4': 'ABSC 12', 'barcelos 5': 'ABSC 15', 'barcelos 6': 'ABSC 07', 'barcelos 7': 'ABSC 18', 'barcelos 8': 'ABSC 04' };
+const meioQuartel = v => (v || '').split(/,\s*/).map(m => MEIOS[sem(m.trim())] || m.trim()).filter((m, i, l) => m && l.indexOf(m) === i).join(', ');
+
 function distancia(a, b) {
   let ant = Array.from({ length: b.length + 1 }, (_, i) => i);
   for (let i = 1; i <= a.length; i++) {
@@ -642,7 +646,7 @@ function parseOcorrencia(texto) {
       partes.push({ ini: h.ini, fim, s: (h.m[1] === 'm' ? 'Masculino' : 'Feminino') + ' de ' + h.m[2] + ', ' + resto });
     } else if (f === 'meio') {
       const nome = h.m[1].charAt(0).toUpperCase() + h.m[1].slice(1) + ' ' + (h.m[2] in DIG ? DIG[h.m[2]] : h.m[2]);
-      r.meio = r.meio ? r.meio + ', ' + nome : nome;
+      r.meio = meioQuartel(r.meio ? r.meio + ', ' + nome : nome);
     } else if (f === 'setor') {
       r.setor = SETORES.find(s => sem(s) === h.m[1]);
       sobra(h.fim, fim);
@@ -1153,7 +1157,7 @@ function mensagem(modo) {
     if (c.freg) linhas.push(c.freg + (c.hora ? ' · ' + c.hora : '')); else add('Hora', c.hora);
     add('Morada', c.rua); add('Referência', c.ref); add('Destino', c.destino); add('Circunstâncias', c.desc);
   }
-  add('Prioridade', (c.prio || '').trim().toUpperCase()); if (!transporte) add('CODU', c.codu);
+  add('Prioridade', (c.prio || '').trim().toUpperCase()); if (!transporte) { add('CODU', c.codu); add('Meio', meioQuartel(c.meio)); }
   const cob = cobranca();
   if (cob && cob.estado === 'cobrar') add('Cobrar', euros(cob.valor) || 'valor por confirmar');
   add('Mapa', linkMapa());
