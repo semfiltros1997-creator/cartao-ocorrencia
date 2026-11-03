@@ -246,7 +246,7 @@ footer { color: var(--muted); font-size: 13px; max-width: 72ch; }
         <div class="campo largo" data-f="desc" id="linhaDesc"><div class="topo-campo"><label class="rotulo" for="f-desc">Circunstâncias</label></div><textarea id="f-desc" rows="2"></textarea></div>
         <div class="numeros">
           <div class="campo" data-f="codu" id="linhaCodu"><div class="topo-campo"><label class="rotulo" for="f-codu">Nº CODU</label></div><input class="num" id="f-codu" inputmode="numeric" autocomplete="off"></div>
-          <div class="campo" data-f="meio" id="linhaMeio"><div class="topo-campo"><label class="rotulo" for="f-meio">Meio</label></div><input class="num" id="f-meio" autocomplete="off"></div>
+          <div class="campo" data-f="meio" id="linhaMeio"><div class="topo-campo"><label class="rotulo" for="f-meio">Meio</label></div><input class="num" id="f-meio" inputmode="none" placeholder="Tocar para escolher" autocomplete="off"></div>
           <div class="campo" data-f="contacto"><div class="topo-campo"><label class="rotulo" for="f-contacto">Contactante</label></div><input class="num" id="f-contacto" list="contactantes" autocomplete="off"><datalist id="contactantes"><option value="112"></option><option value="117"></option><option value="PSP"></option><option value="GNR"></option><option value="Urgência"></option><option value="Piso 1"></option><option value="Piso 3"></option><option value="Piso 5"></option><option value="Consulta externa"></option></datalist></div>
           <div class="campo" data-f="prio" id="linhaPrio"><div class="topo-campo"><label class="rotulo" for="f-prio">Prioridade</label></div><input class="num" id="f-prio" autocomplete="off"></div>
         </div>
@@ -1081,7 +1081,8 @@ function desenha() {
   $('linhaCodu').hidden = semCodu() || !(!S.tipo || S.tipo === 'emergencia' || S.campos.codu);
   $('linhaPrio').hidden = $('prioBloco').hidden = !(S.tipo === 'emergencia' || S.campos.prio);
   /* Pode sair mais de um meio em qualquer ocorrência que não seja transporte. */
-  $('linhaMeio').hidden = $('meioBloco').hidden = semCodu() && !S.campos.meio;
+  $('linhaMeio').hidden = semCodu() && !S.campos.meio;
+  $('meioBloco').hidden = $('linhaMeio').hidden || !meiosAbertos;
   const meios = meioQuartel(S.campos.meio).split(', ');
   for (const b of $('meioChips').children) b.setAttribute('aria-pressed', String(meios.includes(b.textContent)));
   for (const b of $('origemChips').children) b.setAttribute('aria-pressed', String(S.campos.origem === b.dataset.v));
@@ -1495,10 +1496,34 @@ for (const m of ['ABSC 11', 'ABSC 12', 'ABSC 15', 'ABSC 07', 'ABSC 04', 'ABSC 18
     const l = meioQuartel(S.campos.meio).split(', ').filter(Boolean);
     S.campos.meio = (l.includes(m) ? l.filter(x => x !== m) : l.concat(m)).join(', ');
     if (S.campos.meio) S.editados.meio = true; else delete S.editados.meio;
+    $('f-meio').value = S.campos.meio;
     desenha();
   };
+  /* Tocar numa viatura não tira o foco do campo, para a lista não fechar a meio da escolha. */
+  b.onpointerdown = e => e.preventDefault();
   $('meioChips').appendChild(b);
 }
+{
+  const b = document.createElement('button');
+  b.type = 'button'; b.textContent = 'Outro…';
+  b.onpointerdown = e => e.preventDefault();
+  b.onclick = () => { const i = $('f-meio'); i.inputMode = 'text'; i.blur(); i.focus(); };
+  $('meioChips').appendChild(b);
+}
+/* Sem teclado ao tocar: abre a lista das viaturas. "Outro…" abre o teclado para escrever. */
+let meiosAbertos = false;
+const abreMeios = () => { if (!meiosAbertos) { meiosAbertos = true; desenha(); } };
+$('f-meio').addEventListener('focus', abreMeios);
+$('f-meio').addEventListener('click', abreMeios);
+/* Tocar fora do Meio fecha a lista das viaturas. */
+document.addEventListener('pointerdown', e => {
+  if (!meiosAbertos || $('linhaMeio').contains(e.target) || $('meioBloco').contains(e.target)) return;
+  meiosAbertos = false; $('f-meio').inputMode = 'none'; desenha();
+});
+$('f-meio').addEventListener('blur', () => setTimeout(() => {
+  if (document.activeElement === $('f-meio')) return;
+  meiosAbertos = false; $('f-meio').inputMode = 'none'; desenha();
+}, 200));
 for (const [nome, v, setor] of [['Urgência', 'Hospital de Barcelos – Urgência'], ['Piso 3 · Ortopedia', 'Hospital de Barcelos – Piso 3', 'Ortopedia'], ['Piso 4 · Medicina', 'Hospital de Barcelos – Piso 4', 'Medicina'], ['Piso 5 · Cirurgia', 'Hospital de Barcelos – Piso 5', 'Cirurgia'], ['Consultas Externas', 'Hospital de Barcelos – Consultas Externas'], ['Domicílio', 'Domicílio']]) {
   const b = document.createElement('button');
   b.type = 'button'; b.textContent = nome; b.dataset.v = v;
