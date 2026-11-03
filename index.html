@@ -445,6 +445,7 @@ function cues(tipo) {
     { f: 'sexo', re: /\b([mf])\s?(\d{1,3})\b/g },
     { f: 'meio', drop: 1, re: /\b(?:vai|vao|sai|segue)\s+(?:[oa]\s+)?(barcelos|barcelinhos|viatodos)[\s,]*(\d{1,2}|um|dois|tres|quatro|cinco|seis|sete|oito|nove)\b/g },
     { f: 'meio', drop: 1, re: /\b(v\s?-?\s?sat)(?:\s*0?([1-9]))?\b/g },
+    { f: 'meio', drop: 1, re: /\b(a?btm|vdtd|v d t d)\s*-?\s*0?(\d{1,2})\b/g },
     { f: 'meio', drop: 1, re: /\b(meio)\s+(?:e\s+)?(?:o\s+)?([1-9]|um|dois|tres|quatro|cinco|seis|sete|oito|nove)\b(?![:h\d])/g },
     /* "Barcelos 3" sozinho, sem "vai": só um algarismo e nunca dentro de uma morada. */
     { f: 'meio', drop: 1, not: /\b(?:rua|avenida|travessa|largo|praceta|estrada|em|n[oa]|para|de|do|da)\s$/, re: /\b(barcelos|barcelinhos|viatodos)[\s,]+([1-9]|um|dois|tres|quatro|cinco|seis|sete|oito|nove)\b(?![:h\d])/g },
@@ -710,7 +711,7 @@ function parseOcorrencia(texto) {
       const resto = t.slice(h.fim, fim).replace(/^[,\s]+/, '');
       partes.push({ ini: h.ini, fim, s: (h.m[1] === 'm' ? 'Masculino' : 'Feminino') + ' de ' + h.m[2] + ', ' + resto });
     } else if (f === 'meio') {
-      const nome = /^v/.test(h.m[1]) ? 'VSAT 0' + (h.m[2] || '1') : (h.m[1] === 'meio' ? 'Barcelos' : h.m[1].charAt(0).toUpperCase() + h.m[1].slice(1)) + ' ' + (h.m[2] in DIG ? DIG[h.m[2]] : h.m[2]);
+      const nome = /^a?btm$/.test(h.m[1]) ? 'ABTM ' + h.m[2].padStart(2, '0') : /^v ?d/.test(h.m[1]) ? 'VDTD ' + h.m[2] : /^v/.test(h.m[1]) ? 'VSAT 0' + (h.m[2] || '1') : (h.m[1] === 'meio' ? 'Barcelos' : h.m[1].charAt(0).toUpperCase() + h.m[1].slice(1)) + ' ' + (h.m[2] in DIG ? DIG[h.m[2]] : h.m[2]);
       r.meio = meioQuartel(r.meio ? r.meio + ', ' + nome : nome);
     } else if (f === 'setor') {
       r.setor = SETORES.find(s => sem(s) === h.m[1]);
@@ -1099,8 +1100,9 @@ function desenha() {
   $('linhaCodu').hidden = semCodu() || !(!S.tipo || S.tipo === 'emergencia' || S.campos.codu);
   $('linhaPrio').hidden = $('prioBloco').hidden = !(S.tipo === 'emergencia' || S.campos.prio);
   /* Pode sair mais de um meio em qualquer ocorrência que não seja transporte. */
-  $('linhaMeio').hidden = semCodu() && !S.campos.meio;
-  $('meioBloco').hidden = $('linhaMeio').hidden || !meiosAbertos;
+  $('linhaMeio').hidden = false;
+  $('meioBloco').hidden = !meiosAbertos;
+  for (const b of $('meioChips').children) if (b.dataset.g) b.hidden = (b.dataset.g === 't') !== semCodu();
   const meios = meioQuartel(S.campos.meio).split(', ');
   for (const b of $('meioChips').children) b.setAttribute('aria-pressed', String(meios.includes(b.textContent)));
   for (const b of $('origemChips').children) b.setAttribute('aria-pressed', String(S.campos.origem === b.dataset.v));
@@ -1248,7 +1250,7 @@ function mensagem(modo) {
     add('Tipo', c.desc); add('Origem', c.origem); add('Destino', c.destino); add('Utente', c.nome);
     const info = [comExtras() ? (c.setor || '').trim() : '', textoExtras()].filter(Boolean).join(' · ');
     if (info) linhas.push(info);
-    add('Morada', c.local); add('Referência', c.ref);
+    add('Morada', c.local); add('Referência', c.ref); add('Meio', meioQuartel(c.meio));
   } else {
     if (c.freg) linhas.push(c.freg + (c.hora ? ' · ' + c.hora : '')); else add('Hora', c.hora);
     add('Morada', c.rua); add('Referência', c.ref); add('Destino', c.destino); add('Circunstâncias', c.desc);
@@ -1529,9 +1531,11 @@ document.addEventListener('pointerdown', e => {
   subAberto = false; desenha();
 });
 for (const f of FREGS) { const o = document.createElement('option'); o.value = f.nome; $('freguesias').appendChild(o); }
-for (const m of ['ABSC 11', 'ABSC 12', 'ABSC 15', 'ABSC 07', 'ABSC 04', 'ABSC 18', 'VSAT 01']) {
+/* Emergência usa as ABSC e a VSAT; transporte usa as ABTM e as VDTD. */
+const VIATURAS_TRANSPORTE = ['ABTM 08', 'ABTM 09', 'ABTM 10', 'VDTD 13', 'VDTD 14', 'VDTD 16', 'VDTD 17', 'VDTD 19'];
+for (const m of ['ABSC 11', 'ABSC 12', 'ABSC 15', 'ABSC 07', 'ABSC 04', 'ABSC 18', 'VSAT 01', ...VIATURAS_TRANSPORTE]) {
   const b = document.createElement('button');
-  b.type = 'button'; b.textContent = m;
+  b.type = 'button'; b.textContent = m; b.dataset.g = VIATURAS_TRANSPORTE.includes(m) ? 't' : 'e';
   b.onclick = () => {
     const l = meioQuartel(S.campos.meio).split(', ').filter(Boolean);
     S.campos.meio = (l.includes(m) ? l.filter(x => x !== m) : l.concat(m)).join(', ');
