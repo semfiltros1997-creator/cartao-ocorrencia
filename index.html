@@ -1252,12 +1252,12 @@ function mensagem(modo) {
     if (info) linhas.push(info);
     add('Morada', c.local); add('Referência', c.ref); add('Meio', meioQuartel(c.meio));
   } else {
-    if (c.freg) linhas.push(c.freg + (c.hora ? ' · ' + c.hora : '')); else add('Hora', c.hora);
+    /* A prioridade vai logo no topo, ao lado da freguesia e da hora: Arcozelo · 23:22 · P1. */
+    const topo = [c.freg, c.hora, (c.prio || '').trim().toUpperCase()].filter(Boolean).join(' · ');
+    if (topo) linhas.push(topo);
     add('Morada', c.rua); add('Referência', c.ref); add('Destino', c.destino); add('Circunstâncias', c.desc);
+    add('CODU', c.codu); add('Meio', meioQuartel(c.meio));
   }
-  const prio = (c.prio || '').trim().toUpperCase();
-  if (prio && !transporte) linhas.push(prio);
-  if (!transporte) { add('CODU', c.codu); add('Meio', meioQuartel(c.meio)); }
   const cob = cobranca();
   if (cob && cob.estado === 'cobrar') add('Cobrar', euros(cob.valor) || 'valor por confirmar');
   add('Mapa', linkMapa());
