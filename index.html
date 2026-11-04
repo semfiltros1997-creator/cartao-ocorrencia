@@ -1143,6 +1143,8 @@ const particular = () => {
 const EXTRAS = { sentado: 'Sentado/a', deitado: 'Deitado/a', rodas: 'c/ rodas', o2: 'c/ O₂', acomp: 'c/ acompanhante' };
 const temExtra = k => k in S.extrasManual ? S.extrasManual[k] : !!S.extrasDito[k];
 const comExtras = () => (S.tipo === 'transporte' || S.tipo === 'transferencia') && S.rotulo !== 'Transporte de cadáver';
+/* Numa consulta o doente vem muitas vezes de casa: o serviço do hospital não interessa. */
+const comSetor = () => comExtras() && S.rotulo !== 'Transporte para consulta';
 const textoExtras = () => comExtras() ? Object.keys(EXTRAS).filter(temExtra).map(k => EXTRAS[k]).join(' · ') : '';
 
 const semCodu = () => S.tipo === 'transporte' || S.tipo === 'transferencia';
@@ -1244,7 +1246,8 @@ function desenha() {
   $('destinoChips').hidden = !listasAbertas.destino;
   $('avisoTermo').hidden = !precisaTermo();
   desenhaSub();
-  $('linhaExtras').hidden = $('linhaSetor').hidden = !comExtras();
+  $('linhaExtras').hidden = !comExtras();
+  $('linhaSetor').hidden = !comSetor();
   $('linhaNome').hidden = !semCodu();
   document.querySelector('label[for="f-desc"]').textContent = semCodu() ? 'Tipo' : 'Circunstâncias';
   for (const b of $('setorChips').children) b.setAttribute('aria-pressed', String(sem(b.textContent) === sem((S.campos.setor || '').trim())));
@@ -1383,7 +1386,7 @@ function mensagem(modo) {
   const add = (r, v) => { if (v) linhas.push(r + ': ' + v); };
   if (transporte) {
     add('Tipo', c.desc); add('Origem', c.origem); add('Destino', c.destino); add('Utente', c.nome);
-    const info = [comExtras() ? (c.setor || '').trim() : '', textoExtras()].filter(Boolean).join(' · ');
+    const info = [comSetor() ? (c.setor || '').trim() : '', textoExtras()].filter(Boolean).join(' · ');
     if (info) linhas.push(info);
     add('Morada', c.local); add('Referência', c.ref); add('Meio', meioQuartel(c.meio));
   } else {
@@ -1473,6 +1476,7 @@ const MORADAS_FIXAS = {
   'UCC Santo António – Barcelos – S.C.M.': { rua: 'Rua Doutor Santos Júnior', freg: 'Barcelos' },
   'Santa Casa da Misericórdia – Barcelos': { rua: 'Rua Doutor Santos Júnior', freg: 'Barcelos' },
   'Lar Rainha Dona Leonor': { rua: 'Avenida dos Combatentes da Grande Guerra', freg: 'Barcelos' },
+  'Dr. João Carvalho': { rua: 'Avenida Alcaides Faria, nº 130', freg: 'Barcelos' },
 };
 /* Lares e unidades com acordo de transporte (folha de 14/10/2025): não se cobra; há fatura no fim do mês e preenche-se o verbete. */
 const ACORDOS = [
@@ -1510,7 +1514,8 @@ const precisaTermo = () => semCodu() && (!S.campos.origem || /^Hospital de Barce
 const destinoComMorada = d => !!d && d !== 'Domicílio' && !/Consultas Externas$/.test(d) && !HOSP.some(p => p.nome === d);
 function lembraMorada() {
   const c = S.campos;
-  if (!semCodu() || !destinoComMorada(c.destino) || !c.rua || !c.freg) return;
+  /* Vindo de casa, a Morada é a do doente e não se guarda como morada do destino. */
+  if (!semCodu() || c.origem === 'Domicílio' || !destinoComMorada(c.destino) || !c.rua || !c.freg) return;
   const m = ler('cartao.moradas', {});
   m[c.destino] = { rua: c.rua, freg: c.freg };
   if (![...$('destinoChips').children].some(b => b.dataset.v === c.destino)) chipDestino(c.destino, c.destino);
@@ -1519,7 +1524,8 @@ function lembraMorada() {
 function moradaLembrada(d) {
   const u = uccDe(d), a = ACORDOS.find(x => x.nome === d);
   const o = destinoComMorada(d) && (ler('cartao.moradas', {})[d] || MORADAS_FIXAS[u ? u.nome : d] || (u || a ? { rua: '', freg: (u || a).freg } : null));
-  if (!o || (S.campos.rua && !S.campos.destHosp)) return false;
+  /* Vindo de casa, a Morada é a casa do doente: a do destino não entra. */
+  if (!o || S.campos.origem === 'Domicílio' || (S.campos.rua && !S.campos.destHosp)) return false;
   S.campos.rua = o.rua; S.campos.freg = o.freg; S.campos.local = juntaLocal();
   S.editados.rua = S.editados.freg = true; S.campos.destHosp = true;
   return true;
@@ -1763,14 +1769,16 @@ $('f-meio').addEventListener('blur', () => setTimeout(() => {
   if (document.activeElement === $('f-meio')) return;
   meiosAbertos = false; $('f-meio').inputMode = 'none'; desenha();
 }, 200));
-for (const [nome, v, setor] of [['Urgência', 'Hospital de Barcelos – Urgência'], ['Piso 3 · Ortopedia', 'Hospital de Barcelos – Piso 3', 'Ortopedia'], ['Piso 4 · Medicina', 'Hospital de Barcelos – Piso 4', 'Medicina'], ['Piso 5 · Cirurgia', 'Hospital de Barcelos – Piso 5', 'Cirurgia']]) {
+for (const [nome, v, setor] of [['Urgência', 'Hospital de Barcelos – Urgência'], ['Piso 3 · Ortopedia', 'Hospital de Barcelos – Piso 3', 'Ortopedia'], ['Piso 4 · Medicina', 'Hospital de Barcelos – Piso 4', 'Medicina'], ['Piso 5 · Cirurgia', 'Hospital de Barcelos – Piso 5', 'Cirurgia'], ['Domicílio', 'Domicílio']]) {
   const b = document.createElement('button');
   b.type = 'button'; b.textContent = nome; b.dataset.v = v;
+  if (v === 'Domicílio') b.dataset.consulta = '1';
   b.onclick = () => {
     const desmarca = S.campos.origem === v;
     S.campos.origem = desmarca ? '' : v;
     if (desmarca) delete S.editados.origem; else S.editados.origem = true;
     if (setor && !desmarca) { S.campos.setor = setor; S.editados.setor = true; }
+    if (v === 'Domicílio' && !desmarca && S.campos.destHosp) { S.campos.rua = S.campos.freg = S.campos.local = ''; S.campos.destHosp = false; }
     $('f-origem').value = S.campos.origem;
     fechaLista('origem');
   };
@@ -1797,7 +1805,7 @@ function chipDestino(nome, v) {
   $('destinoChips').appendChild(b);
   return b;
 }
-for (const [nome, v] of [['Domicílio', 'Domicílio'], ['Consultas Externas', 'Hospital de Barcelos – Consultas Externas'], ['Hospital de Braga', 'Hospital de Braga'], ['Hospital de São João', 'Hospital de São João'], ['IPO Porto', 'IPO Porto'], ['Hospital de Santo António', 'Hospital de Santo António'], ['Hospital de Famalicão', 'Hospital de Famalicão'], ['Hospital de Viana do Castelo', 'Hospital de Viana do Castelo'], ['Trofa Saúde do Bonfim', 'Trofa Saúde do Bonfim']]) chipDestino(nome, v);
+for (const [nome, v] of [['Domicílio', 'Domicílio'], ['Consultas Externas', 'Hospital de Barcelos – Consultas Externas'], ['Hospital de Braga', 'Hospital de Braga'], ['Hospital de São João', 'Hospital de São João'], ['IPO Porto', 'IPO Porto'], ['Hospital de Santo António', 'Hospital de Santo António'], ['Hospital de Famalicão', 'Hospital de Famalicão'], ['Hospital de Viana do Castelo', 'Hospital de Viana do Castelo'], ['Trofa Saúde do Bonfim', 'Trofa Saúde do Bonfim'], ['Trofa Saúde Barcelos', 'Trofa Saúde Barcelos'], ['Dr. João Carvalho', 'Dr. João Carvalho']]) chipDestino(nome, v);
 /* As UCC e os lares com acordo são muitos: só aparecem ao escrever. */
 for (const x of [...UCC_LISTA, ...ACORDOS, { nome: 'Lar Rainha Dona Leonor' }].filter((x, i, l) => l.findIndex(y => y.nome === x.nome) === i)) chipDestino(x.nome, x.nome).dataset.cat = '1';
 /* Destinos escritos à mão que já têm morada guardada também passam a aparecer nas opções. */
@@ -1822,7 +1830,8 @@ for (const k of ['origem', 'destino']) {
       const partes = sem(b.dataset.v).replace(/^ucci? /, '').split(' – ').map(x => x.replace(/["().,]/g, ''));
       return partes.some(x => x.startsWith(qn)) || (palavras.every(p => p.length >= 3) && porPalavra);
     };
-    for (const b of caixa.children) b.hidden = b.dataset.cat ? !q || escolhido || !bate(b) : !!q && !escolhido && !bate(b);
+    /* Domicílio só é origem numa consulta. */
+    for (const b of caixa.children) b.hidden = b.dataset.consulta && S.rotulo !== 'Transporte para consulta' ? true : b.dataset.cat ? !q || escolhido || !bate(b) : !!q && !escolhido && !bate(b);
   };
   const abre = () => { filtra(); if (!listasAbertas[k]) { listasAbertas[k] = true; desenha(); } };
   campo.addEventListener('focus', abre);
