@@ -1251,7 +1251,8 @@ function desenha() {
   const bateMeio = m => { const [sigla, num] = m.split(' '); return (sigla + num).toLowerCase().startsWith(qMeio) || (/^\d+$/.test(qMeio) && (num.startsWith(qMeio) || Number(num) === Number(qMeio))); };
   for (const b of $('meioChips').children) {
     const doTipo = b.dataset.g === 't' ? semCodu() : b.dataset.g === 'i' ? comIncendio : !semCodu();
-    b.hidden = !doTipo || !qMeio || !bateMeio(b.textContent);
+    /* Letras: só a partir de duas ("vu", "ab"). Números: basta um ("5" dá VFCI 05 e VTTF 05). */
+    b.hidden = !doTipo || !(/^\d+$/.test(qMeio) || qMeio.length >= 2) || !bateMeio(b.textContent);
   }
   $('meioBloco').hidden = ![...$('meioChips').children].some(b => !b.hidden);
   const meios = meioQuartel(S.campos.meio).split(', ');
