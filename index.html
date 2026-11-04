@@ -1348,7 +1348,26 @@ function desenhaOpcoes() {
   }
 }
 
+/* Moradas dos destinos (UCC, clínicas): a primeira vez escreve-se à mão; ao guardar ou enviar, fica neste telemóvel
+   e depois vem junto ao escolher esse destino. */
+const destinoComMorada = d => !!d && d !== 'Domicílio' && !/Consultas Externas$/.test(d) && !HOSP.some(p => p.nome === d);
+function lembraMorada() {
+  const c = S.campos;
+  if (!semCodu() || !destinoComMorada(c.destino) || !c.rua || !c.freg) return;
+  const m = ler('cartao.moradas', {});
+  m[c.destino] = { rua: c.rua, freg: c.freg };
+  if (![...$('destinoChips').children].some(b => b.dataset.v === c.destino)) chipDestino(c.destino, c.destino);
+  gravar('cartao.moradas', m);
+}
+function moradaLembrada(d) {
+  const o = destinoComMorada(d) && ler('cartao.moradas', {})[d];
+  if (!o || (S.campos.rua && !S.campos.destHosp)) return false;
+  S.campos.rua = o.rua; S.campos.freg = o.freg; S.campos.local = juntaLocal();
+  S.editados.rua = S.editados.freg = true; S.campos.destHosp = true;
+  return true;
+}
 function guardaRecente() {
+  lembraMorada();
   const agora = Date.now();
   const lista = ler('cartao.recentes', []).filter(c => agora - c.ts < 864e5 && c.id !== S.id);
   lista.unshift({ id: S.id, ts: agora, S: JSON.parse(JSON.stringify(S)) });
@@ -1599,23 +1618,29 @@ for (const [nome, v, setor] of [['Urgência', 'Hospital de Barcelos – Urgênci
   };
   $('origemChips').appendChild(b);
 }
-for (const [nome, v] of [['Domicílio', 'Domicílio'], ['Consultas Externas', 'Hospital de Barcelos – Consultas Externas'], ['Hospital de Braga', 'Hospital de Braga'], ['Hospital de São João', 'Hospital de São João'], ['IPO Porto', 'IPO Porto'], ['Hospital de Santo António', 'Hospital de Santo António'], ['Hospital de Famalicão', 'Hospital de Famalicão'], ['Hospital de Viana do Castelo', 'Hospital de Viana do Castelo'], ['Trofa Saúde do Bonfim', 'Trofa Saúde do Bonfim'], ...CCS.map(([c]) => [c, c])]) {
+function chipDestino(nome, v) {
   const b = document.createElement('button');
   b.type = 'button'; b.textContent = nome; b.dataset.v = v;
   b.onclick = () => {
     const desmarca = S.campos.destino === v, hp = HOSP.find(p => p.nome === v);
     S.campos.destino = desmarca ? '' : v;
     if (desmarca) delete S.editados.destino; else S.editados.destino = true;
+    /* A morada que veio sozinha com o destino anterior sai ao trocar de destino. */
+    if (S.campos.destHosp) { S.campos.rua = S.campos.freg = S.campos.local = ''; S.campos.destHosp = false; }
     /* Numa transferência, o hospital escolhido traz a morada, como quando é dito. */
     if (hp && !desmarca && S.tipo === 'transferencia' && !S.campos.rua) {
       S.campos.rua = hp.rua; S.campos.freg = hp.loc; S.campos.local = juntaLocal();
       S.editados.rua = S.editados.freg = true; S.campos.destHosp = true;
     }
+    if (!desmarca) moradaLembrada(v);
     $('f-destino').value = S.campos.destino;
     fechaLista('destino');
   };
   $('destinoChips').appendChild(b);
 }
+for (const [nome, v] of [['Domicílio', 'Domicílio'], ['Consultas Externas', 'Hospital de Barcelos – Consultas Externas'], ['Hospital de Braga', 'Hospital de Braga'], ['Hospital de São João', 'Hospital de São João'], ['IPO Porto', 'IPO Porto'], ['Hospital de Santo António', 'Hospital de Santo António'], ['Hospital de Famalicão', 'Hospital de Famalicão'], ['Hospital de Viana do Castelo', 'Hospital de Viana do Castelo'], ['Trofa Saúde do Bonfim', 'Trofa Saúde do Bonfim'], ...CCS.map(([c]) => [c, c])]) chipDestino(nome, v);
+/* Destinos escritos à mão que já têm morada guardada também passam a aparecer nas opções. */
+for (const d of Object.keys(ler('cartao.moradas', {}))) if (![...$('destinoChips').children].some(b => b.dataset.v === d)) chipDestino(d, d);
 /* Origem e Destino: escreve-se à vontade; as opções abrem ao tocar no campo, vão filtrando pelo que se escreve
    e fecham ao escolher ou ao tocar fora. */
 const listasAbertas = { origem: false, destino: false };
@@ -1632,6 +1657,7 @@ for (const k of ['origem', 'destino']) {
   campo.addEventListener('focus', abre);
   campo.addEventListener('click', abre);
   campo.addEventListener('input', filtra);
+  if (k === 'destino') campo.addEventListener('change', () => { if (moradaLembrada(S.campos.destino)) desenha(); });
   document.addEventListener('pointerdown', e => {
     if (!listasAbertas[k] || $(k === 'origem' ? 'linhaOrigem' : 'linhaDestino').contains(e.target)) return;
     fechaLista(k);
