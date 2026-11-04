@@ -1536,10 +1536,6 @@ function desenhaSub() {
         S.tipo = desmarca ? k : (tipo || k);
         S.rotulo = desmarca ? TIPOS[k] : rotulo;
         delete S.editados.desc;
-        /* A alta vai quase sempre para casa: o destino já vem como Domicílio e troca-se se for lar ou UCC. */
-        if (S.destinoAuto && S.campos.destino === 'Domicílio') { S.campos.destino = ''; delete S.editados.destino; }
-        S.destinoAuto = !desmarca && rotulo === 'Alta hospitalar' && !S.campos.destino;
-        if (S.destinoAuto) { S.campos.destino = 'Domicílio'; S.editados.destino = true; }
         subAberto = desmarca;
         atualiza(false);
       };
