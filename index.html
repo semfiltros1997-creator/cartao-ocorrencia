@@ -43,7 +43,10 @@ body { background: var(--bg); color: var(--ink); font: 400 16px/1.4 var(--body);
 #cofre .manter { display: flex; align-items: center; gap: 8px; color: var(--ink); }
 #cofre .manter input { width: 22px; height: 22px; flex: none; }
 .wrap { max-width: 1140px; margin: 0 auto; padding-block: 14px 32px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 14px; }
-header { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
+header { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; position: relative; }
+/* Sair fica sempre no canto superior direito. */
+header:has(#btnBloquear:not([hidden])) { padding-right: 84px; }
+#btnBloquear { position: absolute; top: 0; right: 0; }
 h1 { font: 700 26px/1 var(--display); letter-spacing: .01em; margin: 0; }
 .relogio { font: 600 18px/1 var(--mono); font-variant-numeric: tabular-nums; color: var(--muted); }
 .esp { flex: 1; }
