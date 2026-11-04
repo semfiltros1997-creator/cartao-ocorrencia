@@ -262,6 +262,7 @@ footer { color: var(--muted); font-size: 13px; max-width: 72ch; }
         <div class="campo largo" id="prioBloco">
           <div class="prio-chips" id="prioChips" role="group" aria-label="Prioridade da triagem"></div>
         </div>
+        <div class="campo largo" id="apoioBloco" hidden><div class="topo-campo"><span class="rotulo">Apoio no local</span></div><div class="extras" id="apoioChips" role="group" aria-label="Apoio no local"></div></div>
         <div class="campo largo" id="pedido" hidden>
           <div id="painelParticular">
             <div id="estadoCobranca" aria-live="polite" hidden></div>
@@ -1262,6 +1263,9 @@ function desenha() {
   for (const b of $('extras').children) b.setAttribute('aria-pressed', String(temExtra(b.dataset.k)));
   const prio = (S.campos.prio || '').trim().toUpperCase();
   for (const b of $('prioChips').children) b.setAttribute('aria-pressed', String(b.dataset.p === prio));
+  /* Apoio diferenciado (VMER, GNR…) só nas ocorrências que não são transporte. */
+  $('apoioBloco').hidden = !S.tipo || semCodu();
+  for (const b of $('apoioChips').children) b.setAttribute('aria-pressed', String((S.apoio || []).includes(b.textContent)));
   $('avisoExemplo').hidden = !S.exemplo;
   const area = infoArea();
   $('areaCartao').hidden = !area;
@@ -1403,7 +1407,7 @@ function mensagem(modo) {
     const topo = [c.freg, c.hora, (c.prio || '').trim().toUpperCase()].filter(Boolean).join(' · ');
     if (topo) linhas.push(topo);
     add('Morada', c.rua); add('Referência', c.ref); add('Destino', c.destino); add('Circunstâncias', c.desc);
-    add('CODU', c.codu); add('Meio', meioQuartel(c.meio));
+    add('CODU', c.codu); add('Meio', meioQuartel(c.meio)); add('Apoio', (S.apoio || []).join(', '));
   }
   const cob = cobranca();
   if (cob && cob.estado === 'cobrar') add('Cobrar', euros(cob.valor) || 'valor por confirmar');
@@ -1888,6 +1892,16 @@ for (const p of PRIOS) {
     desenha();
   };
   $('prioChips').appendChild(b);
+}
+for (const a of ['VMER', 'SIV', 'GNR', 'PSP']) {
+  const b = document.createElement('button');
+  b.type = 'button'; b.textContent = a;
+  b.onclick = () => {
+    const l = S.apoio || [];
+    S.apoio = l.includes(a) ? l.filter(x => x !== a) : l.concat(a);
+    desenha();
+  };
+  $('apoioChips').appendChild(b);
 }
 for (const f of CAMPOS) $('f-' + f).addEventListener('input', e => {
   if (f === 'hora') e.target.value = mascaraHora(e.target.value);
