@@ -1174,7 +1174,7 @@ function infoArea() {
   const e = itens[0], nossa = e.area === NOSSA;
   return {
     nossa: nossa ? 'sim' : 'nao',
-    texto: (nossa ? 'Nossa área' : 'Fora da área: é de ' + CORPOS[e.area]) + ' · ' + kmTexto(e.km),
+    texto: (nossa ? 'Nossa área' : 'Fora da área de intervenção · ' + CORPOS[e.area]) + ' · ' + kmTexto(e.km),
     msg: ['Área', CORPOS[e.area] + ', ' + kmTexto(e.km) + (nossa ? '' : ' (fora da área)')],
   };
 }
