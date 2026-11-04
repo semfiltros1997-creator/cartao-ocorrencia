@@ -234,8 +234,8 @@ footer { color: var(--muted); font-size: 13px; max-width: 72ch; }
         <div class="campo largo" data-f="freg"><div class="topo-campo"><label class="rotulo" for="f-freg">Freguesia ou localidade</label></div><input id="f-freg" list="freguesias" autocomplete="off"><datalist id="freguesias"></datalist></div>
         <div id="areaCartao" aria-live="polite" hidden></div>
         <div class="campo largo" data-f="ref"><div class="topo-campo"><label class="rotulo" for="f-ref">Ponto de referência</label></div><input id="f-ref" autocomplete="off" placeholder="Perto de, ao lado de"></div>
-        <div class="campo largo" data-f="origem" id="linhaOrigem" hidden><div class="topo-campo"><label class="rotulo" for="f-origem">Origem</label></div><input id="f-origem" inputmode="none" placeholder="Tocar para escolher" autocomplete="off"><div class="extras" id="origemChips" role="group" aria-label="Origem"></div></div>
-        <div class="campo largo" data-f="destino" id="linhaDestino" hidden><div class="topo-campo"><label class="rotulo" for="f-destino">Destino</label></div><input id="f-destino" inputmode="none" placeholder="Tocar para escolher" autocomplete="off"><div class="extras" id="destinoChips" role="group" aria-label="Destino"></div></div>
+        <div class="campo largo" data-f="origem" id="linhaOrigem" hidden><div class="topo-campo"><label class="rotulo" for="f-origem">Origem</label></div><input id="f-origem" placeholder="Escrever ou escolher" autocomplete="off"><div class="extras" id="origemChips" role="group" aria-label="Origem"></div></div>
+        <div class="campo largo" data-f="destino" id="linhaDestino" hidden><div class="topo-campo"><label class="rotulo" for="f-destino">Destino</label></div><input id="f-destino" placeholder="Escrever ou escolher" autocomplete="off"><div class="extras" id="destinoChips" role="group" aria-label="Destino"></div></div>
         <div class="campo largo" data-f="nome" id="linhaNome" hidden><div class="topo-campo"><label class="rotulo" for="f-nome">Utente</label></div><input id="f-nome" autocomplete="off"></div>
         <div class="campo largo" data-f="setor" id="linhaSetor" hidden>
           <div class="topo-campo"><label class="rotulo" for="f-setor">Serviço do hospital</label></div>
@@ -560,6 +560,16 @@ const achaHosp = s => HOSP.find(p => new RegExp('\\b(?:' + p.re + ')\\b').test(s
 const cortaConversa = s => s.split(/[,.?!]|\s(?:tem|logo|que|voc[eê]|vai|ok|confirme|era|obrigad\w+)\b/i)[0];
 
 /* "Transferência para Braga" é o hospital dessa cidade; o Porto tem vários, por isso fica só o nome. */
+/* Unidades de cuidados continuados (UCC; UCCI se intensivos): no cartão saem como "UCC Vila Verde". A Geriave é a de Vila Carolina. */
+const CCS = [['UCC Geriave Vila Carolina', /vila carolina|\bgeri+a+ve\b/], ['UCC Vila Verde', /vila verde/], ['UCC Monção', /moncao/], ['UCC Santo António', /santo antonio/]];
+const CC_FALA = /\b(?:unidade de )?(?:cuidados continuados|u ?c ?c ?i?|c ?c|ce ce|se se)( intensivos)?\s+(?:de |do |da )?([a-z]+(?: [a-z]+)?)/;
+function achaCC(n) {
+  if (CCS[0][1].test(n)) return CCS[0][0];
+  const m = CC_FALA.exec(n);
+  const c = m && CCS.find(([, re]) => re.test(m[2]));
+  if (!c) return '';
+  return /\bu ?c ?c ?i\b|intensivos/.test(m[0]) ? c[0].replace('UCC', 'UCCI') : c[0];
+}
 const CIDADES = { braga: 'Braga', barcelos: 'Barcelos', famalicao: 'Famalicão', porto: 'Porto', guimaraes: 'Guimarães', esposende: 'Esposende', viana: 'Viana do Castelo', povoa: 'Póvoa de Varzim' };
 const LIGA = new Set(['de', 'do', 'da', 'dos', 'das', 'e', 'a', 'o', 'no', 'na', 'em']);
 function titulo(s) {
@@ -785,9 +795,17 @@ function parseOcorrencia(texto) {
       const piso = /Piso (\d)$/.exec(r.origem);
       if (piso && !r.setor && PISOS[piso[1]]) r.setor = PISOS[piso[1]]; ruas.splice(0, ruas.length, ...ruas.filter(v => !saida(v))); }
   }
+  /* Cuidados continuados ditos: o destino é a unidade e os pedaços do nome não ficam como rua ou freguesia. */
+  const cc = transp ? achaCC(n) : '';
+  if (cc) {
+    const resto = sem(cc).replace(/^ucci? /, '') + ' unidade';
+    destinos.splice(0, destinos.length, cc);
+    for (const lista of [ruas, fregs]) lista.splice(0, lista.length, ...lista.filter(v => !resto.includes(sem(v).replace(/[()]/g, '')) && !/cuidados|\bu?cc\b|geri/.test(sem(v))));
+    hospital = null;
+  }
   /* Numa alta ou ida para casa ou lar, o destino é Domicílio ou o lar, e a rua dita vai para a Morada. */
   const CASA = /^(?:casa|lar|domicilio)$/;
-  const aCasa = tipo === 'transporte' && destinos.length && (destinos.some(v => CASA.test(sem(v))) || /^Alta/.test(r.rotulo))
+  const aCasa = !cc && tipo === 'transporte' && destinos.length && (destinos.some(v => CASA.test(sem(v))) || /^Alta/.test(r.rotulo))
     && !destinos.some(v => /hospital|clinica|centro de saude|consulta|exame|hemodialise|maternidade|ucc|cuidados|trofa|casa de saude/.test(sem(v)));
   if (aCasa) {
     const lar = destinos.some(v => sem(v) === 'lar');
@@ -1581,7 +1599,7 @@ for (const [nome, v, setor] of [['Urgência', 'Hospital de Barcelos – Urgênci
   };
   $('origemChips').appendChild(b);
 }
-for (const [nome, v] of [['Domicílio', 'Domicílio'], ['Consultas Externas', 'Hospital de Barcelos – Consultas Externas'], ['Hospital de Braga', 'Hospital de Braga'], ['Hospital de São João', 'Hospital de São João'], ['IPO Porto', 'IPO Porto'], ['Hospital de Santo António', 'Hospital de Santo António'], ['Hospital de Famalicão', 'Hospital de Famalicão'], ['Hospital de Viana do Castelo', 'Hospital de Viana do Castelo'], ['Trofa Saúde do Bonfim', 'Trofa Saúde do Bonfim']]) {
+for (const [nome, v] of [['Domicílio', 'Domicílio'], ['Consultas Externas', 'Hospital de Barcelos – Consultas Externas'], ['Hospital de Braga', 'Hospital de Braga'], ['Hospital de São João', 'Hospital de São João'], ['IPO Porto', 'IPO Porto'], ['Hospital de Santo António', 'Hospital de Santo António'], ['Hospital de Famalicão', 'Hospital de Famalicão'], ['Hospital de Viana do Castelo', 'Hospital de Viana do Castelo'], ['Trofa Saúde do Bonfim', 'Trofa Saúde do Bonfim'], ...CCS.map(([c]) => [c, c])]) {
   const b = document.createElement('button');
   b.type = 'button'; b.textContent = nome; b.dataset.v = v;
   b.onclick = () => {
@@ -1598,19 +1616,22 @@ for (const [nome, v] of [['Domicílio', 'Domicílio'], ['Consultas Externas', 'H
   };
   $('destinoChips').appendChild(b);
 }
-/* Origem e Destino: as opções abrem ao tocar no campo e fecham ao escolher ou ao tocar fora. */
+/* Origem e Destino: escreve-se à vontade; as opções abrem ao tocar no campo, vão filtrando pelo que se escreve
+   e fecham ao escolher ou ao tocar fora. */
 const listasAbertas = { origem: false, destino: false };
-function fechaLista(k) { listasAbertas[k] = false; $('f-' + k).inputMode = 'none'; desenha(); }
+function fechaLista(k) { listasAbertas[k] = false; desenha(); }
 for (const k of ['origem', 'destino']) {
   const caixa = $(k + 'Chips'), campo = $('f-' + k);
-  const outro = document.createElement('button');
-  outro.type = 'button'; outro.textContent = 'Outro…';
-  outro.onclick = () => { campo.inputMode = 'text'; campo.blur(); campo.focus(); };
-  caixa.appendChild(outro);
   caixa.addEventListener('pointerdown', e => e.preventDefault());
-  const abre = () => { if (!listasAbertas[k]) { listasAbertas[k] = true; desenha(); } };
+  const filtra = () => {
+    const q = sem(campo.value.trim());
+    const escolhido = [...caixa.children].some(b => b.dataset.v === campo.value);
+    for (const b of caixa.children) b.hidden = !!q && !escolhido && !sem(b.textContent + ' ' + b.dataset.v).includes(q);
+  };
+  const abre = () => { filtra(); if (!listasAbertas[k]) { listasAbertas[k] = true; desenha(); } };
   campo.addEventListener('focus', abre);
   campo.addEventListener('click', abre);
+  campo.addEventListener('input', filtra);
   document.addEventListener('pointerdown', e => {
     if (!listasAbertas[k] || $(k === 'origem' ? 'linhaOrigem' : 'linhaDestino').contains(e.target)) return;
     fechaLista(k);
