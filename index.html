@@ -259,6 +259,7 @@ footer { color: var(--muted); font-size: 13px; max-width: 72ch; }
           <div class="campo" data-f="prio" id="linhaPrio"><div class="topo-campo"><label class="rotulo" for="f-prio">Prioridade</label></div><input class="num" id="f-prio" autocomplete="off"></div>
         </div>
         <div class="campo largo" id="meioBloco"><div class="extras" id="meioChips" role="group" aria-label="Meios de emergência"></div></div>
+        <div class="campo largo" id="alertaBloco" hidden><div class="topo-campo"><span class="rotulo">Quem deu o alerta</span></div><div class="extras" id="alertaChips" role="group" aria-label="Quem deu o alerta"></div></div>
         <div class="campo largo" id="prioBloco">
           <div class="prio-chips" id="prioChips" role="group" aria-label="Prioridade da triagem"></div>
         </div>
@@ -1142,7 +1143,10 @@ let precos = guarda.ler('cartao.precos', [{ nome: 'Barcelos', valor: 20 }, { nom
 /* Só um telefone no contactante é chamada particular; 112, 117, PSP, GNR, urgência, pisos e consulta externa não cobram. */
 const particular = () => {
   const c = (S.campos.contacto || '').trim();
-  return (c ? c.replace(/\D/g, '').length >= 9 : S.partDito) && !S.hospDito;
+  /* Alerta pelo 112, 117, PSP ou GNR não é particular, mesmo com um número para contacto. */
+  const { quem, numero } = partesContacto(c);
+  if (/^(?:112|117|PSP|GNR)$/.test(quem)) return false;
+  return (c ? (numero || c).replace(/\D/g, '').length >= 9 : S.partDito) && !S.hospDito;
 };
 
 /* Condições do transporte: só aparecem na mensagem quando são positivas. */
@@ -1272,7 +1276,9 @@ function desenha() {
   const prio = (S.campos.prio || '').trim().toUpperCase();
   for (const b of $('prioChips').children) b.setAttribute('aria-pressed', String(b.dataset.p === prio));
   /* Apoio diferenciado (VMER, GNR…) só nas ocorrências que não são transporte. */
-  $('apoioBloco').hidden = !S.tipo || semCodu();
+  $('apoioBloco').hidden = $('alertaBloco').hidden = !S.tipo || semCodu();
+  const alerta = partesContacto(S.campos.contacto).quem;
+  for (const b of $('alertaChips').children) b.setAttribute('aria-pressed', String(sem(alerta) === sem(b.textContent)));
   for (const b of $('apoioChips').children) b.setAttribute('aria-pressed', String((S.apoio || []).includes(b.textContent)));
   $('avisoExemplo').hidden = !S.exemplo;
   const area = infoArea();
@@ -1397,6 +1403,17 @@ function linkMapa() {
   return q ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q) : '';
 }
 
+/* "Popular 912 345 678" → quem deu o alerta e o número. */
+function partesContacto(v) {
+  let ct = (v || '').trim();
+  /* "112 912 345 678": o 112 é quem alertou, não o começo do número. */
+  const fixo = ct.match(/^(112|117|psp|gnr|popular)(?![\w])[\s·,:-]*/i);
+  if (fixo) ct = ct.slice(fixo[0].length);
+  const numero = (ct.match(/\+?\d[\d\s]{7,}\d/) || [''])[0].trim();
+  const resto = ct.replace(numero, '').replace(/[\s·,:-]+$/, '').replace(/^[\s·,:-]+/, '').trim();
+  return { quem: fixo ? ['112', '117', 'PSP', 'GNR', 'Popular'].find(x => sem(x) === sem(fixo[1])) + (resto ? ' ' + resto : '') : resto, numero };
+}
+
 function mensagem(modo) {
   const c = S.campos, transporte = semCodu();
   /* Na emergência o subtipo junta-se ao tipo: EMERGÊNCIA MÉDICA – TRAUMA. */
@@ -1413,8 +1430,7 @@ function mensagem(modo) {
   } else {
     /* A prioridade vai logo no topo, ao lado da freguesia e da hora: Arcozelo · 23:22 · P1. */
     /* Contactante: quem deu o alerta (112, PSP, Popular…) vai no topo; o número, se houver, vai mais abaixo. */
-    const ct = (c.contacto || '').trim(), numero = (ct.match(/\+?\d[\d\s]{7,}\d/) || [''])[0].trim();
-    const quem = ct.replace(numero, '').replace(/[\s·,:-]+$/, '').replace(/^[\s·,:-]+/, '').trim();
+    const { quem, numero } = partesContacto(c.contacto);
     const topo = [c.freg, c.hora, (c.prio || '').trim().toUpperCase(), quem ? 'Alerta ' + quem : ''].filter(Boolean).join(' · ');
     if (topo) linhas.push(topo);
     add('Morada', c.rua); add('Referência', c.ref); add('Destino', c.destino); add('Circunstâncias', c.desc);
@@ -1910,6 +1926,22 @@ for (const a of ['VMER', 'SIV', 'GNR', 'PSP']) {
     desenha();
   };
   $('apoioChips').appendChild(b);
+}
+/* Quem deu o alerta: o botão troca a primeira parte do Contactante e guarda o número que lá estiver. */
+for (const a of ['112', '117', 'PSP', 'GNR', 'Popular']) {
+  const b = document.createElement('button');
+  b.type = 'button'; b.textContent = a;
+  b.onclick = () => {
+    if (S.exemplo) novaOcorrencia();
+    const { quem, numero } = partesContacto(S.campos.contacto);
+    S.campos.contacto = [quem === a ? '' : a, numero].filter(Boolean).join(' ');
+    if (S.campos.contacto) S.editados.contacto = true; else delete S.editados.contacto;
+    $('f-contacto').value = S.campos.contacto;
+    desenha();
+    /* Popular: fica pronto para escrever o número. */
+    if (a === 'Popular' && quem !== a && !numero) { const i = $('f-contacto'); i.value += ' '; i.focus(); i.setSelectionRange(i.value.length, i.value.length); }
+  };
+  $('alertaChips').appendChild(b);
 }
 for (const f of CAMPOS) $('f-' + f).addEventListener('input', e => {
   if (f === 'hora') e.target.value = mascaraHora(e.target.value);
