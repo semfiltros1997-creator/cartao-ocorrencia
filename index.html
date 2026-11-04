@@ -130,7 +130,8 @@ select { font: 500 15px/1 var(--body); min-height: 36px; border: 1.5px solid var
 #painelParticular { display: grid; gap: 8px; padding-bottom: 8px; }
 #estadoCobranca { border-radius: 6px; padding: 8px 10px; font-weight: 600; font-size: 15px; background: var(--panel); }
 #estadoCobranca[data-estado="cobrar"] { background: var(--warn-bg); color: var(--warn-ink); }
-#estadoCobranca[data-estado="urgente"] { color: var(--send); }
+#estadoCobranca[data-estado="urgente"], #estadoCobranca[data-estado="acordo"] { color: var(--send); }
+#avisoTermo { border-radius: 6px; padding: 8px 10px; font-weight: 600; font-size: 15px; background: var(--warn-bg); color: var(--warn-ink); margin-top: 6px; }
 .valor-linha { display: flex; align-items: center; gap: 8px; }
 .valor-linha input { max-width: 120px; }
 .contacto { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; align-items: center; padding: 6px 0; border-top: 1px solid var(--rule); }
@@ -235,7 +236,7 @@ footer { color: var(--muted); font-size: 13px; max-width: 72ch; }
         <div id="areaCartao" aria-live="polite" hidden></div>
         <div class="campo largo" data-f="ref"><div class="topo-campo"><label class="rotulo" for="f-ref">Ponto de referência</label></div><input id="f-ref" autocomplete="off" placeholder="Perto de, ao lado de"></div>
         <div class="campo largo" data-f="origem" id="linhaOrigem" hidden><div class="topo-campo"><label class="rotulo" for="f-origem">Origem</label></div><input id="f-origem" placeholder="Escrever ou escolher" autocomplete="off"><div class="extras" id="origemChips" role="group" aria-label="Origem"></div></div>
-        <div class="campo largo" data-f="destino" id="linhaDestino" hidden><div class="topo-campo"><label class="rotulo" for="f-destino">Destino</label></div><input id="f-destino" placeholder="Escrever ou escolher" autocomplete="off"><div class="extras" id="destinoChips" role="group" aria-label="Destino"></div></div>
+        <div class="campo largo" data-f="destino" id="linhaDestino" hidden><div class="topo-campo"><label class="rotulo" for="f-destino">Destino</label></div><input id="f-destino" placeholder="Escrever ou escolher" autocomplete="off"><div class="extras" id="destinoChips" role="group" aria-label="Destino"></div><div id="avisoTermo" hidden>Só com termo do Hospital de Barcelos. Sem termo, não se faz o transporte.</div></div>
         <div class="campo largo" data-f="nome" id="linhaNome" hidden><div class="topo-campo"><label class="rotulo" for="f-nome">Utente</label></div><input id="f-nome" autocomplete="off"></div>
         <div class="campo largo" data-f="setor" id="linhaSetor" hidden>
           <div class="topo-campo"><label class="rotulo" for="f-setor">Serviço do hospital</label></div>
@@ -445,7 +446,7 @@ function cues(tipo) {
     { f: 'sexo', re: /\b([mf])\s?(\d{1,3})\b/g },
     { f: 'meio', drop: 1, re: /\b(?:vai|vao|sai|segue)\s+(?:[oa]\s+)?(barcelos|barcelinhos|viatodos)[\s,]*(\d{1,2}|um|dois|tres|quatro|cinco|seis|sete|oito|nove)\b/g },
     { f: 'meio', drop: 1, re: /\b(v\s?-?\s?sat)(?:\s*0?([1-9]))?\b/g },
-    { f: 'meio', drop: 1, re: /\b(a?btm|vdtd|v d t d)\s*-?\s*0?(\d{1,2})\b/g },
+    { f: 'meio', drop: 1, re: /\b(a?btm|a?bci|vdtd|v d t d)\s*-?\s*0?(\d{1,2})\b/g },
     { f: 'meio', drop: 1, re: /\b(meio)\s+(?:e\s+)?(?:o\s+)?([1-9]|um|dois|tres|quatro|cinco|seis|sete|oito|nove)\b(?![:h\d])/g },
     /* "Barcelos 3" sozinho, sem "vai": só um algarismo e nunca dentro de uma morada. */
     { f: 'meio', drop: 1, not: /\b(?:rua|avenida|travessa|largo|praceta|estrada|em|n[oa]|para|de|do|da)\s$/, re: /\b(barcelos|barcelinhos|viatodos)[\s,]+([1-9]|um|dois|tres|quatro|cinco|seis|sete|oito|nove)\b(?![:h\d])/g },
@@ -560,15 +561,122 @@ const achaHosp = s => HOSP.find(p => new RegExp('\\b(?:' + p.re + ')\\b').test(s
 const cortaConversa = s => s.split(/[,.?!]|\s(?:tem|logo|que|voc[eê]|vai|ok|confirme|era|obrigad\w+)\b/i)[0];
 
 /* "Transferência para Braga" é o hospital dessa cidade; o Porto tem vários, por isso fica só o nome. */
-/* Unidades de cuidados continuados (UCC; UCCI se intensivos): no cartão saem como "UCC Vila Verde". A Geriave é a de Vila Carolina. */
-const CCS = [['UCC Geriave Vila Carolina', /vila carolina|\bgeri+a+ve\b/], ['UCC Vila Verde', /vila verde/], ['UCC Monção', /moncao/], ['UCC Santo António', /santo antonio/]];
-const CC_FALA = /\b(?:unidade de )?(?:cuidados continuados|u ?c ?c ?i?|c ?c|ce ce|se se)( intensivos)?\s+(?:de |do |da )?([a-z]+(?: [a-z]+)?)/;
+/* Rede de cuidados continuados, como na folha da central (30/06/2026): "concelho – lugar – entidade; freguesia".
+   No cartão saem como "UCC Arcos de Valdevez – S.C.M." (UCCI se forem intensivos). A de Barcelos é a "UCC Santo António". */
+const UCC_LISTA = `Arouca – S.C.M.;Arouca
+Castelo de Paiva – S.C.M.;Castelo de Paiva
+Santa Maria da Feira – Escapães – Centro Social de Escapães;Escapães
+Santa Maria da Feira – Fiães – Foco Saúde Fiães;Fiães
+São João da Madeira – S.C.M.;São João da Madeira
+Vale de Cambra – S.C.M.;Vila Chã
+Santo António – Barcelos – S.C.M.;Barcelos
+Barcelos – Tregosa – 5 SENSI;Tregosa
+Braga – O Poverello;São Vítor
+Cabeceiras de Basto – Basto Vida – Refojos de Basto;Refojos de Basto
+Cabeceiras de Basto – S.C.M. – Refojos de Basto;Refojos de Basto
+Celorico de Basto – S.C.M. – S. Bento Arnóia;Arnóia
+Esposende – S.C.M.;Esposende
+Esposende – Forjães – Fundação Dr. Queirós da Silva;Forjães
+Fafe – S.C.M.;Fafe
+Fafe – Medelo – Centro Social São Martinho de Medelo;Medelo
+Guimarães – S.C.M.;Oliveira do Castelo
+Guimarães – Pinheiro – UCCI S. Pedro "Centro S. Polvoreira";Pinheiro
+Guimarães – Nespereira – Centro Social Nespereira;Nespereira
+Póvoa de Lanhoso – S.C.M.;Póvoa de Lanhoso
+Riba de Ave – S.C.M.;Riba de Ave
+Vieira do Minho – S.C.M.;Vieira do Minho
+Vila Nova de Famalicão – Delães – Lar Divino Salvador (Delapo);Delães
+Vila Verde – S.C.M.;Vila Verde
+Vizela – S.C.M.;Caldas de Vizela
+Bragança – S.C.M.;Sé
+Freixo de Espada à Cinta – S.C.M.;Freixo de Espada à Cinta
+Macedo de Cavaleiros – ULSNE Polo de Macedo de Cavaleiros;Macedo de Cavaleiros
+Miranda do Douro – S.C.M.;Miranda do Douro
+Mirandela – S.C.M. – Hospital Terra Quente;Mirandela
+Mogadouro – S.C.M.;Mogadouro
+Torre de Moncorvo – S.C.M.;Torre de Moncorvo
+Vila Flor – S.C.M.;Vila Flor
+Vimioso – S.C.M.;Vimioso
+Vinhais – Involve Vinhais;Vinhais
+Cinfães – S.C.M.;Cinfães
+Resende – S.C.M.;Resende
+Sernancelhe – S.C.M.;Sernancelhe
+Tarouca – S.C.M.;Tarouca
+Amarante – S.C.M.;Amarante
+Felgueiras – S.C.M.;Felgueiras
+Gondomar – Hospital-Escola Universidade Fernando Pessoa;Gondomar
+Lousada – S.C.M.;Lousada
+Maia – Águas Santas – Cruz Vermelha;Águas Santas
+Marco de Canaveses – S.C.M.;Marco de Canaveses
+Matosinhos – S. Mamede de Infesta – Kastelo Marta Ortigão;São Mamede de Infesta
+Paços de Ferreira – Radelfe;Paços de Ferreira
+Paredes – Hospital Particular de Paredes – S.C.M.;Paredes
+Paredes – Gandra – Olhar Atento;Gandra
+Porto – Celestial Ordem da Trindade;Santo Ildefonso
+Penafiel – Figueira;Figueira
+Póvoa de Varzim – Hospital da Luz;Aver-o-Mar
+Póvoa de Varzim – S.C.M.;Póvoa de Varzim
+Póvoa de Varzim – Beiriz – Wecare;Beiriz
+Santo Tirso – S.C.M.;Santo Tirso
+Trofa – Hospital Trofa Saúde;Trofa
+Valongo – Campo – Hospital São Martinho;Campo
+Vila do Conde – Touguinhó – Hospitais Senhor do Bonfim;Touguinhó
+Vila do Conde – S.C.M.;Vila do Conde
+Vila Nova de Gaia – Seixezelo – Geriavi Clínica da Lomba;Seixezelo
+Vila Nova de Gaia – Santa Marinha – Trofa Saúde de Gaia;Santa Marinha
+Vila Nova de Gaia – Hospital da Luz Arrábida;São Pedro da Afurada
+Vila Nova de Gaia – Montepio Residências;Mafamude
+Arcos de Valdevez – S.C.M.;Vila Fonche
+Caminha – Vila Praia de Âncora – Instituto S. João de Deus, Gelfa;Âncora
+Melgaço – Casa de Saúde S. José – Instituto S. João de Deus;Vila
+Monção – S.C.M.;Mazedo
+Paredes de Coura – S.C.M.;Paredes de Coura
+Ponte da Barca – Casa da Cerca;Ponte da Barca
+Ponte da Barca – S.C.M.;Ponte da Barca
+Ponte de Lima – Arcozelo – Centro Comunitário de Arcozelo – S.C.M.;Arcozelo
+Valença – ULSAM de Valença;Valença
+Viana do Castelo – Areosa – Geriavi, Villa Carolina;Areosa
+Viana do Castelo – Darque – Centro Comunitário de Darque;Darque
+Alijó – S.C.M.;Alijó
+Boticas – S.C.M.;Boticas
+Montalegre – S.C.M.;Montalegre
+Murça – S.C.M.;Murça
+Peso da Régua – S.C.M.;Peso da Régua
+Ribeira de Pena – S.C.M.;Salvador
+Sabrosa – S.C.M.;Sabrosa
+Vila Real – S.C.M.;São Pedro
+Valpaços;Valpaços`.split('\n').map(l => {
+  const [nome, freg] = l.split(';'), partes = nome.split(' – ');
+  const conc = partes[0] === 'Santo António' ? 'Barcelos' : partes[0];
+  const ent = partes.filter(p => p !== 'S.C.M.').pop();
+  /* Para o mapa: a Santa Casa do concelho, ou a entidade, sempre com o concelho. */
+  const q = (partes.length === 1 || ent === conc ? 'Santa Casa da Misericórdia de ' + conc : ent + ', ' + (freg !== conc ? freg + ', ' : '') + conc);
+  /* Palavras para reconhecer no ditado: o concelho, a freguesia e os nomes da entidade. */
+  const curto = { 'Vila Nova de Gaia': 'Gaia', 'Vila Nova de Famalicão': 'Famalicão', 'Santa Maria da Feira': 'Feira', 'Póvoa de Varzim': 'Póvoa' }[conc];
+  const chaves = [...new Set([conc, freg, curto || '', ...partes].filter(p => p !== 'S.C.M.' && p.length > 3).map(p => sem(p).replace(/["().,]/g, '').trim()))];
+  return { nome: 'UCC ' + nome, freg: freg === conc ? conc : freg + ', ' + conc, conc, q, chaves, scm: partes.length === 2 && partes[1] === 'S.C.M.' };
+});
+const uccDe = d => UCC_LISTA.find(u => u.nome === String(d || '').replace(/^UCCI /, 'UCC '));
+const CC_FALA = /\b(?:unidade de )?(?:cuidados continuados|u ?c ?c ?i?|c ?c|ce ce|se se)( intensivos)?\s+(?:de |do |da |em |dos )?/;
 function achaCC(n) {
-  if (CCS[0][1].test(n)) return CCS[0][0];
+  const fixa = /vila carolina|\bgeri+a+v[ei]\b(?! clinica)/.test(n) && !/lomba|seixezelo/.test(n) ? UCC_LISTA.find(u => /Villa Carolina/.test(u.nome)) : null;
   const m = CC_FALA.exec(n);
-  const c = m && CCS.find(([, re]) => re.test(m[2]));
-  if (!c) return '';
-  return /\bu ?c ?c ?i\b|intensivos/.test(m[0]) ? c[0].replace('UCC', 'UCCI') : c[0];
+  if (!m && !fixa) return '';
+  let u = fixa;
+  if (!u) {
+    const resto = n.slice(m.index + m[0].length);
+    if (/^santo antonio\b/.test(resto)) u = UCC_LISTA.find(x => x.nome.startsWith('UCC Santo António'));
+    else {
+      /* A chave mais longa logo a seguir a "UCC de"; num concelho com várias, fica a Santa Casa. */
+      let melhor = 0;
+      for (const x of UCC_LISTA) for (const k of x.chaves) {
+        if (!resto.startsWith(k) || /[a-z]/.test(resto.charAt(k.length))) continue;
+        if (k.length > melhor || (k.length === melhor && x.scm)) { melhor = k.length; u = x; }
+      }
+    }
+  }
+  if (!u) return '';
+  return m && /\bu ?c ?c ?i\b|intensivos/.test(m[0]) ? u.nome.replace(/^UCC /, 'UCCI ') : u.nome;
 }
 const CIDADES = { braga: 'Braga', barcelos: 'Barcelos', famalicao: 'Famalicão', porto: 'Porto', guimaraes: 'Guimarães', esposende: 'Esposende', viana: 'Viana do Castelo', povoa: 'Póvoa de Varzim' };
 const LIGA = new Set(['de', 'do', 'da', 'dos', 'das', 'e', 'a', 'o', 'no', 'na', 'em']);
@@ -721,7 +829,7 @@ function parseOcorrencia(texto) {
       const resto = t.slice(h.fim, fim).replace(/^[,\s]+/, '');
       partes.push({ ini: h.ini, fim, s: (h.m[1] === 'm' ? 'Masculino' : 'Feminino') + ' de ' + h.m[2] + ', ' + resto });
     } else if (f === 'meio') {
-      const nome = /^a?btm$/.test(h.m[1]) ? 'ABTM ' + h.m[2].padStart(2, '0') : /^v ?d/.test(h.m[1]) ? 'VDTD ' + h.m[2] : /^v/.test(h.m[1]) ? 'VSAT 0' + (h.m[2] || '1') : (h.m[1] === 'meio' ? 'Barcelos' : h.m[1].charAt(0).toUpperCase() + h.m[1].slice(1)) + ' ' + (h.m[2] in DIG ? DIG[h.m[2]] : h.m[2]);
+      const nome = /^a?btm$/.test(h.m[1]) ? 'ABTM ' + h.m[2].padStart(2, '0') : /^a?bci$/.test(h.m[1]) ? 'ABCI ' + h.m[2].padStart(2, '0') : /^v ?d/.test(h.m[1]) ? 'VDTD ' + h.m[2] : /^v/.test(h.m[1]) ? 'VSAT 0' + (h.m[2] || '1') : (h.m[1] === 'meio' ? 'Barcelos' : h.m[1].charAt(0).toUpperCase() + h.m[1].slice(1)) + ' ' + (h.m[2] in DIG ? DIG[h.m[2]] : h.m[2]);
       r.meio = meioQuartel(r.meio ? r.meio + ', ' + nome : nome);
     } else if (f === 'setor') {
       r.setor = SETORES.find(s => sem(s) === h.m[1]);
@@ -796,11 +904,11 @@ function parseOcorrencia(texto) {
       if (piso && !r.setor && PISOS[piso[1]]) r.setor = PISOS[piso[1]]; ruas.splice(0, ruas.length, ...ruas.filter(v => !saida(v))); }
   }
   /* Cuidados continuados ditos: o destino é a unidade e os pedaços do nome não ficam como rua ou freguesia. */
-  const cc = transp ? achaCC(n) : '';
+  const cc = transp ? achaCC(n) || (/\bhotel lar\b/.test(n) ? 'Hotel Lar Condes de Barcelos' : '') : '';
   if (cc) {
     const resto = sem(cc).replace(/^ucci? /, '') + ' unidade';
     destinos.splice(0, destinos.length, cc);
-    for (const lista of [ruas, fregs]) lista.splice(0, lista.length, ...lista.filter(v => !resto.includes(sem(v).replace(/[()]/g, '')) && !/cuidados|\bu?cc\b|geri/.test(sem(v))));
+    for (const lista of [ruas, fregs, refs]) lista.splice(0, lista.length, ...lista.filter(v => !resto.includes(sem(v).replace(/[()]/g, '')) && !/cuidados|\bu?cc\b|geri/.test(sem(v))));
     hospital = null;
   }
   /* Numa alta ou ida para casa ou lar, o destino é Domicílio ou o lar, e a rua dita vai para a Morada. */
@@ -840,6 +948,8 @@ function parseOcorrencia(texto) {
   }
   /* Domicílio e consultas externas são sempre destino, nunca origem. */
   if (/Consultas Externas$/.test(r.origem)) { if (!destinos.length) destinos.push(r.origem); r.origem = ''; }
+  /* "Hotel lar" é o Hotel Lar Condes de Barcelos. */
+  destinos.forEach((v, i) => { if (/^hotel lar(?![a-z])/.test(sem(v))) destinos[i] = 'Hotel Lar Condes de Barcelos'; });
   destinos.forEach((v, i) => { if (/^consultas? externas?/.test(sem(v))) destinos[i] = 'Hospital de Barcelos – Consultas Externas'; });
   /* "Rua da Igreja Arcozelo": a freguesia dita colada ao fim da rua vai para o seu campo. "Rua de Arcozelo" é nome da rua. */
   ruas.forEach((v, i) => {
@@ -960,7 +1070,11 @@ function consultasMapa(c) {
   const ref = refNua(c.ref || ''), lista = [];
   const sufixo = s => (s = s.replace(/[()]/g, '').replace(/^(?:Urgência|Pisos?)(?=,|$)/, 'Hospital de Barcelos'), foraDeBarcelos(s) || /\bbarcelos$/i.test(s) ? s + ', Portugal' : s + ', Barcelos, Portugal');
   /* Hospital conhecido: pesquisa pelo nome. UCC e outros com morada guardada: pesquisa pela morada. */
-  if (c.destHosp && c.destino) return [(HOSP.some(p => p.nome === c.destino) || !c.local ? c.destino + ', ' + (c.freg || '') : c.local) + ', Portugal'];
+  if (c.destHosp && c.destino) {
+    const u = uccDe(c.destino);
+    if (u && !c.rua) return [u.q + ', Portugal'];
+    return [(HOSP.some(p => p.nome === c.destino) || !c.rua ? c.destino + ', ' + (c.freg || '') : c.local) + ', Portugal'];
+  }
   /* Numa alta, a morada do doente vem no destino. */
   if (!c.local && c.destino && c.destino !== 'Domicílio') {
     const dest = c.destino.replace(/^Casa,\s*/, '');
@@ -1058,8 +1172,8 @@ function infoArea() {
   };
 }
 const semNumero = () => S.semManual !== null ? S.semManual : S.semDito;
-const cobranca = () => cobrancaDe({ particular: particular(), tipo: S.tipo, codu: S.campos.codu, semNumero: semNumero(), local: S.campos.destHosp ? '' : S.campos.local, destino: S.campos.destino, precos, valorManual: S.valorManual,
-  volta: ['Transporte para exame', 'Transporte para consulta'].includes(S.rotulo), esperaH: S.esperaH, o2: comExtras() && temExtra('o2'), o2H: S.o2H, rodas: comExtras() && temExtra('rodas'), medicalizada: S.rotulo === 'Transferência medicalizada' });
+const cobranca = () => { const a = acordoAtual(); return a ? { estado: 'acordo', onde: a.nome } : cobrancaDe({ particular: particular(), tipo: S.tipo, codu: S.campos.codu, semNumero: semNumero(), local: S.campos.destHosp ? '' : S.campos.local, destino: S.campos.destino, precos, valorManual: S.valorManual,
+  volta: ['Transporte para exame', 'Transporte para consulta'].includes(S.rotulo), esperaH: S.esperaH, o2: comExtras() && temExtra('o2'), o2H: S.o2H, rodas: comExtras() && temExtra('rodas'), medicalizada: S.rotulo === 'Transferência medicalizada' }); };
 const euros = v => v ? v + ' €' : '';
 const achaB = n => contactos.find(c => c.num === limpaNum(n)) || contactos.find(c => c.mec && c.mec === n);
 const equipa = () => [...new Set(S.equipa.concat(S.ditos.filter(n => !S.tirados.includes(n))))];
@@ -1128,6 +1242,7 @@ function desenha() {
   for (const b of $('destinoChips').children) b.setAttribute('aria-pressed', String(S.campos.destino === b.dataset.v));
   $('origemChips').hidden = !listasAbertas.origem;
   $('destinoChips').hidden = !listasAbertas.destino;
+  $('avisoTermo').hidden = !precisaTermo();
   desenhaSub();
   $('linhaExtras').hidden = $('linhaSetor').hidden = !comExtras();
   $('linhaNome').hidden = !semCodu();
@@ -1175,6 +1290,7 @@ function desenhaPedido() {
     caixa.textContent = {
       comando: 'Abrir a ocorrência com o comando.',
       urgente: 'CODU atribuiu número. Não cobrar.',
+      acordo: 'Com acordo (' + cob.onde + '): não cobrar. Preencher o verbete de transporte (folha branca).',
       aguarda: 'Passe a chamada ao 112. ' + (cob.valor ? 'Se não atribuir número, cobrar ' + euros(cob.valor) + '.' : 'Se não atribuir número, falta o preço deste local.'),
       cobrar: (cob.valor ? 'Cobrar ' + euros(cob.valor) + (cob.onde ? ' (' + cob.onde + ').' : '.') : 'Cobrar. Falta o preço deste local.') + (cob.falta && cob.falta.length ? ' Falta somar ' + cob.falta.join(' e ') + '.' : ''),
     }[cob.estado];
@@ -1352,7 +1468,45 @@ function desenhaOpcoes() {
 /* Moradas dos destinos (UCC, clínicas): a primeira vez escreve-se à mão; ao guardar ou enviar, fica neste telemóvel
    e depois vem junto ao escolher esse destino. */
 /* Moradas já confirmadas pelo dono; a escrita à mão neste telemóvel tem precedência. */
-const MORADAS_FIXAS = { 'UCC Geriave Vila Carolina': { rua: 'Rua do Mirante, nº 85, Areosa', freg: 'Viana do Castelo' } };
+const MORADAS_FIXAS = {
+  'UCC Viana do Castelo – Areosa – Geriavi, Villa Carolina': { rua: 'Rua do Mirante, nº 85', freg: 'Areosa, Viana do Castelo' },
+  'UCC Santo António – Barcelos – S.C.M.': { rua: 'Rua Doutor Santos Júnior', freg: 'Barcelos' },
+  'Santa Casa da Misericórdia – Barcelos': { rua: 'Rua Doutor Santos Júnior', freg: 'Barcelos' },
+  'Lar Rainha Dona Leonor': { rua: 'Avenida dos Combatentes da Grande Guerra', freg: 'Barcelos' },
+};
+/* Lares e unidades com acordo de transporte (folha de 14/10/2025): não se cobra; há fatura no fim do mês e preenche-se o verbete. */
+const ACORDOS = [
+  ['A.C.R.A. – Alheira', 'Alheira', /\ba ?c ?r ?a\b|alheira/],
+  ['Casa do Povo de Alvito São Pedro', 'Alvito (São Pedro)', /alvito/],
+  ['Casa de Saúde São João de Deus – Arcozelo', 'Arcozelo', /sao joao de deus/],
+  ['Casa de Saúde São José – Areias de Vilar', 'Areias de Vilar', /sao jose|areias de vilar/],
+  ['Centro Social de Remelhe', 'Remelhe', /remelhe/],
+  ['Centro Social da Silva', 'Silva', /\bsilva\b/],
+  ['Centro Social de Vila Cova', 'Vila Cova', /vila cova/],
+  ['Centro de Solidariedade Social – Tamel São Veríssimo', 'Tamel (São Veríssimo)', /tamel\W*(?:s|sao) verissimo/],
+  ['Centro Zulmira Pereira Simões – Roriz', 'Roriz', /zulmira|roriz/],
+  ['Hotel Lar Condes de Barcelos', 'Barcelos', /hotel lar|condes de barcelos/],
+  ['Santa Casa da Misericórdia – Barcelos', 'Barcelos', /^(?:lar (?:da )?)?(?:santa casa(?: da misericordia)?|misericordia|s ?c ?m)(?: (?:de )?barcelos)?$/],
+  ['Lar Rainha Dona Leonor', 'Barcelos', /rainha d(?:ona)? ?leonor/],
+  ['Santa Casa da Misericórdia – Silveiros', 'Silveiros', /silveiros/],
+  ['Santa Casa da Misericórdia – Vila Frescaínha São Martinho', 'Vila Frescaínha (São Martinho)', /frescainha/],
+  ['Somos Avós – Adães', 'Adães', /somos avos|adaes/],
+].map(([nome, freg, re]) => ({ nome, freg, re }));
+const INSTITUICAO = /\b(?:lar|centro|casa|santa casa|misericordia|s ?c ?m|hotel|a ?c ?r ?a|somos avos|unidade|associacao)\b/;
+function acordoDe(v) {
+  const a = ACORDOS.find(x => x.nome === v);
+  if (a) return a;
+  const s = sem(String(v || '')).replace(/[–—-]/g, ' ').replace(/[().]/g, '').replace(/\s+/g, ' ').trim();
+  if (!s) return null;
+  /* Das unidades da rede, só a de Barcelos (Santo António) tem acordo. */
+  if (/^ucci? /.test(s)) return /^ucci? santo antonio/.test(s) ? { nome: 'UCC Santo António' } : null;
+  if (!INSTITUICAO.test(s)) return null;
+  return ACORDOS.find(x => x.re.test(s)) || null;
+}
+const acordoAtual = () => semCodu() && (acordoDe(S.campos.origem) || acordoDe(S.campos.destino));
+/* Retorno do Hospital de Barcelos para estas unidades: só com o termo do hospital. */
+const precisaTermo = () => semCodu() && (!S.campos.origem || /^Hospital de Barcelos/.test(S.campos.origem))
+  && /^UCCI? (?:Barcelos – Tregosa|Esposende – Forjães|Esposende – S\.C\.M\.$)/.test(S.campos.destino || '');
 const destinoComMorada = d => !!d && d !== 'Domicílio' && !/Consultas Externas$/.test(d) && !HOSP.some(p => p.nome === d);
 function lembraMorada() {
   const c = S.campos;
@@ -1363,7 +1517,8 @@ function lembraMorada() {
   gravar('cartao.moradas', m);
 }
 function moradaLembrada(d) {
-  const o = destinoComMorada(d) && (ler('cartao.moradas', {})[d] || MORADAS_FIXAS[d]);
+  const u = uccDe(d), a = ACORDOS.find(x => x.nome === d);
+  const o = destinoComMorada(d) && (ler('cartao.moradas', {})[d] || MORADAS_FIXAS[u ? u.nome : d] || (u || a ? { rua: '', freg: (u || a).freg } : null));
   if (!o || (S.campos.rua && !S.campos.destHosp)) return false;
   S.campos.rua = o.rua; S.campos.freg = o.freg; S.campos.local = juntaLocal();
   S.editados.rua = S.editados.freg = true; S.campos.destHosp = true;
@@ -1571,8 +1726,8 @@ document.addEventListener('pointerdown', e => {
   subAberto = false; desenha();
 });
 for (const f of FREGS) { const o = document.createElement('option'); o.value = f.nome; $('freguesias').appendChild(o); }
-/* Emergência usa as ABSC e a VSAT; transporte usa as ABTM e as VDTD. */
-const VIATURAS_TRANSPORTE = ['ABTM 08', 'ABTM 09', 'ABTM 10', 'VDTD 13', 'VDTD 14', 'VDTD 16', 'VDTD 17', 'VDTD 19'];
+/* Emergência usa as ABSC e a VSAT; transporte usa as ABCI (medicalizadas), as ABTM e as VDTD. */
+const VIATURAS_TRANSPORTE = ['ABCI 01', 'ABCI 02', 'ABTM 08', 'ABTM 09', 'ABTM 10', 'VDTD 13', 'VDTD 14', 'VDTD 16', 'VDTD 17', 'VDTD 19'];
 for (const m of ['ABSC 11', 'ABSC 12', 'ABSC 15', 'ABSC 07', 'ABSC 04', 'ABSC 18', 'VSAT 01', ...VIATURAS_TRANSPORTE]) {
   const b = document.createElement('button');
   b.type = 'button'; b.textContent = m; b.dataset.g = VIATURAS_TRANSPORTE.includes(m) ? 't' : 'e';
@@ -1640,8 +1795,11 @@ function chipDestino(nome, v) {
     fechaLista('destino');
   };
   $('destinoChips').appendChild(b);
+  return b;
 }
-for (const [nome, v] of [['Domicílio', 'Domicílio'], ['Consultas Externas', 'Hospital de Barcelos – Consultas Externas'], ['Hospital de Braga', 'Hospital de Braga'], ['Hospital de São João', 'Hospital de São João'], ['IPO Porto', 'IPO Porto'], ['Hospital de Santo António', 'Hospital de Santo António'], ['Hospital de Famalicão', 'Hospital de Famalicão'], ['Hospital de Viana do Castelo', 'Hospital de Viana do Castelo'], ['Trofa Saúde do Bonfim', 'Trofa Saúde do Bonfim'], ...CCS.map(([c]) => [c, c])]) chipDestino(nome, v);
+for (const [nome, v] of [['Domicílio', 'Domicílio'], ['Consultas Externas', 'Hospital de Barcelos – Consultas Externas'], ['Hospital de Braga', 'Hospital de Braga'], ['Hospital de São João', 'Hospital de São João'], ['IPO Porto', 'IPO Porto'], ['Hospital de Santo António', 'Hospital de Santo António'], ['Hospital de Famalicão', 'Hospital de Famalicão'], ['Hospital de Viana do Castelo', 'Hospital de Viana do Castelo'], ['Trofa Saúde do Bonfim', 'Trofa Saúde do Bonfim']]) chipDestino(nome, v);
+/* As UCC e os lares com acordo são muitos: só aparecem ao escrever. */
+for (const x of [...UCC_LISTA, ...ACORDOS, { nome: 'Lar Rainha Dona Leonor' }].filter((x, i, l) => l.findIndex(y => y.nome === x.nome) === i)) chipDestino(x.nome, x.nome).dataset.cat = '1';
 /* Destinos escritos à mão que já têm morada guardada também passam a aparecer nas opções. */
 for (const d of Object.keys(ler('cartao.moradas', {}))) if (![...$('destinoChips').children].some(b => b.dataset.v === d)) chipDestino(d, d);
 /* Origem e Destino: escreve-se à vontade; as opções abrem ao tocar no campo, vão filtrando pelo que se escreve
@@ -1654,7 +1812,17 @@ for (const k of ['origem', 'destino']) {
   const filtra = () => {
     const q = sem(campo.value.trim());
     const escolhido = [...caixa.children].some(b => b.dataset.v === campo.value);
-    for (const b of caixa.children) b.hidden = !!q && !escolhido && !sem(b.textContent + ' ' + b.dataset.v).includes(q);
+    const palavras = q.split(/\s+/).filter(Boolean), alvo = b => sem(b.textContent + ' ' + b.dataset.v).replace(/[–—"().,-]/g, ' ').split(/\s+/);
+    /* Cada palavra escrita começa uma palavra da opção. Nas UCC, "ucc v" dá as que têm um nome começado por V (Vila Verde, Viana…). */
+    const bate = b => {
+      const porPalavra = palavras.every(p => alvo(b).some(w => w.startsWith(p)));
+      if (!b.dataset.cat) return porPalavra;
+      const qn = palavras.filter(p => !/^ucci?$/.test(p)).join(' ');
+      if (!qn) return /^ucc/.test(sem(b.dataset.v));
+      const partes = sem(b.dataset.v).replace(/^ucci? /, '').split(' – ').map(x => x.replace(/["().,]/g, ''));
+      return partes.some(x => x.startsWith(qn)) || (palavras.every(p => p.length >= 3) && porPalavra);
+    };
+    for (const b of caixa.children) b.hidden = b.dataset.cat ? !q || escolhido || !bate(b) : !!q && !escolhido && !bate(b);
   };
   const abre = () => { filtra(); if (!listasAbertas[k]) { listasAbertas[k] = true; desenha(); } };
   campo.addEventListener('focus', abre);
