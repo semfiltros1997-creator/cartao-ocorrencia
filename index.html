@@ -101,6 +101,8 @@ select { font: 500 15px/1 var(--body); min-height: 36px; border: 1.5px solid var
 .linhas.transp > [data-f="freg"] { order: 8; }
 .linhas.transp > #areaCartao { order: 9; }
 .linhas.transp > [data-f="ref"] { order: 10; }
+/* Do nosso hospital para um sítio que a equipa conhece: sem morada. */
+.linhas.conhecido > [data-f="rua"], .linhas.conhecido > [data-f="freg"], .linhas.conhecido > [data-f="ref"] { display: none; }
 .numeros { grid-column: 1 / -1; display: flex; flex-wrap: wrap; min-width: 0; }
 .numeros .campo { flex: 1 1 110px; }
 .numeros .campo[data-f="meio"] { flex-basis: 140px; }
@@ -1234,6 +1236,7 @@ function desenha() {
   $('linhaDestino').hidden = !S.campos.destino && !semCodu();
   $('linhaOrigem').hidden = !semCodu();
   document.querySelector('.linhas').classList.toggle('transp', semCodu());
+  document.querySelector('.linhas').classList.toggle('conhecido', sitioConhecido());
   /* CODU nunca existe em transporte nem em transferência. */
   $('linhaCodu').hidden = semCodu() || !(!S.tipo || S.tipo === 'emergencia' || S.campos.codu);
   $('linhaPrio').hidden = $('prioBloco').hidden = !(S.tipo === 'emergencia' || S.campos.prio);
@@ -1391,7 +1394,8 @@ function mensagem(modo) {
     add('Tipo', c.desc); add('Origem', c.origem); add('Destino', c.destino); add('Utente', c.nome);
     const info = [comSetor() ? (c.setor || '').trim() : '', textoExtras()].filter(Boolean).join(' · ');
     if (info) linhas.push(info);
-    add('Morada', c.local); add('Referência', c.ref); add('Meio', meioQuartel(c.meio));
+    if (!sitioConhecido()) { add('Morada', c.local); add('Referência', c.ref); }
+    add('Meio', meioQuartel(c.meio));
   } else {
     /* A prioridade vai logo no topo, ao lado da freguesia e da hora: Arcozelo · 23:22 · P1. */
     const topo = [c.freg, c.hora, (c.prio || '').trim().toUpperCase()].filter(Boolean).join(' · ');
@@ -1401,7 +1405,7 @@ function mensagem(modo) {
   }
   const cob = cobranca();
   if (cob && cob.estado === 'cobrar') add('Cobrar', euros(cob.valor) || 'valor por confirmar');
-  add('Mapa', linkMapa());
+  if (!sitioConhecido()) add('Mapa', linkMapa());
   return linhas.join('\n');
 }
 
@@ -1409,7 +1413,7 @@ let procura = 0, avisoMapa = '';
 const espera = ms => new Promise(r => setTimeout(r, ms));
 const avisa = t => { avisoMapa = t; $('pontoEstado').textContent = t; };
 /* Sem morada dita, procura-se o destino. A pesquisa pode dar um resultado único e errado, por isso aqui escolhe sempre o operador. */
-const buscaDestino = () => semCodu() && !S.campos.local && !!S.campos.destino;
+const buscaDestino = () => semCodu() && !S.campos.local && !!S.campos.destino && !sitioConhecido();
 function aplicaDestino(o) {
   if (!o.rua && !o.loc) return;
   S.campos.rua = o.rua;
@@ -1510,6 +1514,9 @@ function acordoDe(v) {
   if (!INSTITUICAO.test(s)) return null;
   return ACORDOS.find(x => x.re.test(s)) || null;
 }
+/* Sítios que a equipa conhece: a sair do nosso hospital para um destes, não é preciso morada. */
+const CONHECIDOS = ['Hospital de Barcelos – Consultas Externas', 'Dr. João Carvalho', 'Trofa Saúde Barcelos'];
+const sitioConhecido = () => semCodu() && /^Hospital de Barcelos/.test(S.campos.origem || '') && CONHECIDOS.includes(S.campos.destino);
 const acordoAtual = () => semCodu() && (acordoDe(S.campos.origem) || acordoDe(S.campos.destino));
 /* Retorno do Hospital de Barcelos para estas unidades: só com o termo do hospital. */
 const precisaTermo = () => semCodu() && (!S.campos.origem || /^Hospital de Barcelos/.test(S.campos.origem))
@@ -1528,7 +1535,7 @@ function moradaLembrada(d) {
   const u = uccDe(d), a = ACORDOS.find(x => x.nome === d);
   const o = destinoComMorada(d) && (ler('cartao.moradas', {})[d] || MORADAS_FIXAS[u ? u.nome : d] || (u || a ? { rua: '', freg: (u || a).freg } : null));
   /* Vindo de casa, a Morada é a casa do doente: a do destino não entra. */
-  if (!o || S.campos.origem === 'Domicílio' || (S.campos.rua && !S.campos.destHosp)) return false;
+  if (!o || S.campos.origem === 'Domicílio' || sitioConhecido() || (S.campos.rua && !S.campos.destHosp)) return false;
   S.campos.rua = o.rua; S.campos.freg = o.freg; S.campos.local = juntaLocal();
   S.editados.rua = S.editados.freg = true; S.campos.destHosp = true;
   return true;
@@ -1781,7 +1788,7 @@ for (const [nome, v, setor] of [['Urgência', 'Hospital de Barcelos – Urgênci
     S.campos.origem = desmarca ? '' : v;
     if (desmarca) delete S.editados.origem; else S.editados.origem = true;
     if (setor && !desmarca) { S.campos.setor = setor; S.editados.setor = true; }
-    if (v === 'Domicílio' && !desmarca && S.campos.destHosp) { S.campos.rua = S.campos.freg = S.campos.local = ''; S.campos.destHosp = false; }
+    if ((v === 'Domicílio' || sitioConhecido()) && !desmarca && S.campos.destHosp) { S.campos.rua = S.campos.freg = S.campos.local = ''; S.campos.destHosp = false; }
     $('f-origem').value = S.campos.origem;
     fechaLista('origem');
   };
