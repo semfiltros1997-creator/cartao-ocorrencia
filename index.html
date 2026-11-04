@@ -103,6 +103,8 @@ select { font: 500 15px/1 var(--body); min-height: 36px; border: 1.5px solid var
 .linhas.transp > [data-f="ref"] { order: 10; }
 /* Do nosso hospital para um sítio que a equipa conhece: sem morada. */
 .linhas.conhecido > [data-f="rua"], .linhas.conhecido > [data-f="freg"], .linhas.conhecido > [data-f="ref"] { display: none; }
+/* Destino num lugar específico (lar, UCC, hospital): o próprio lugar já é a referência. */
+.linhas.semref > [data-f="ref"] { display: none; }
 .numeros { grid-column: 1 / -1; display: flex; flex-wrap: wrap; min-width: 0; }
 .numeros .campo { flex: 1 1 110px; }
 .numeros .campo[data-f="meio"] { flex-basis: 140px; }
@@ -1080,7 +1082,7 @@ function consultasMapa(c) {
   if (c.destHosp && c.destino) {
     const u = uccDe(c.destino);
     if (u && !c.rua) return [u.q + ', Portugal'];
-    return [(HOSP.some(p => p.nome === c.destino) || !c.rua ? c.destino + ', ' + (c.freg || '') : c.local) + ', Portugal'];
+    return [((HOSP.some(p => p.nome === c.destino) || !c.rua ? c.destino + ', ' + (c.freg || '') : c.local) + ', Portugal').replace(/[()]/g, '')];
   }
   /* Numa alta, a morada do doente vem no destino. */
   if (!c.local && c.destino && c.destino !== 'Domicílio') {
@@ -1242,6 +1244,7 @@ function desenha() {
   $('linhaOrigem').hidden = !semCodu();
   document.querySelector('.linhas').classList.toggle('transp', semCodu());
   document.querySelector('.linhas').classList.toggle('conhecido', sitioConhecido());
+  document.querySelector('.linhas').classList.toggle('semref', lugarEspecifico());
   /* CODU nunca existe em transporte nem em transferência. */
   $('linhaCodu').hidden = semCodu() || !(!S.tipo || S.tipo === 'emergencia' || S.campos.codu);
   /* A prioridade escolhe-se só nos botões P1 a P5; o campo escrito fica escondido. */
@@ -1430,7 +1433,7 @@ function mensagem(modo) {
     add('Tipo', c.desc); add('Origem', c.origem); add('Destino', c.destino); add('Utente', c.nome);
     const info = [comSetor() ? (c.setor || '').trim() : '', textoExtras()].filter(Boolean).join(' · ');
     if (info) linhas.push(info);
-    if (!sitioConhecido()) { add('Morada', c.local); add('Referência', c.ref); }
+    if (!sitioConhecido()) { add('Morada', c.local); if (!lugarEspecifico()) add('Referência', c.ref); }
     add('Meio', meioQuartel(c.meio));
   } else {
     /* A prioridade vai logo no topo, ao lado da freguesia e da hora: Arcozelo · 23:22 · P1. */
@@ -1524,6 +1527,7 @@ const MORADAS_FIXAS = {
   'Santa Casa da Misericórdia – Barcelos': { rua: 'Rua Doutor Santos Júnior', freg: 'Barcelos' },
   'Lar Rainha Dona Leonor': { rua: 'Avenida dos Combatentes da Grande Guerra', freg: 'Barcelos' },
   'Dr. João Carvalho': { rua: 'Avenida Alcaides Faria, nº 130', freg: 'Barcelos' },
+  'Centro de Solidariedade Social – Tamel São Veríssimo': { rua: 'Rua João Gomes Lourenço', freg: 'Tamel (São Veríssimo)' },
 };
 /* Lares e unidades com acordo de transporte (folha de 14/10/2025): não se cobra; há fatura no fim do mês e preenche-se o verbete. */
 const ACORDOS = [
@@ -1536,7 +1540,7 @@ const ACORDOS = [
   ['Centro Social de Vila Cova', 'Vila Cova', /vila cova/],
   ['Centro de Solidariedade Social – Tamel São Veríssimo', 'Tamel (São Veríssimo)', /tamel\W*(?:s|sao) verissimo/],
   ['Centro Zulmira Pereira Simões – Roriz', 'Roriz', /zulmira|roriz/],
-  ['Hotel Lar Condes de Barcelos', 'Barcelos', /hotel lar|condes de barcelos/],
+  ['Hotel Lar Condes de Barcelos', 'Arcozelo', /hotel lar|condes de barcelos/],
   ['Santa Casa da Misericórdia – Barcelos', 'Barcelos', /^(?:lar (?:da )?)?(?:santa casa(?: da misericordia)?|misericordia|s ?c ?m)(?: (?:de )?barcelos)?$/],
   ['Lar Rainha Dona Leonor', 'Barcelos', /rainha d(?:ona)? ?leonor/],
   ['Santa Casa da Misericórdia – Silveiros', 'Silveiros', /silveiros/],
@@ -1556,6 +1560,12 @@ function acordoDe(v) {
 }
 /* Sítios que a equipa conhece: a sair do nosso hospital para um destes, não é preciso morada. */
 const CONHECIDOS = ['Hospital de Barcelos – Consultas Externas', 'Dr. João Carvalho', 'Trofa Saúde Barcelos'];
+/* Lar, UCC, hospital, clínica…: lugar com nome próprio, que dispensa ponto de referência. Vindo de casa, a morada é a do doente. */
+const lugarEspecifico = () => {
+  const d = S.campos.destino || '';
+  if (!semCodu() || !d || d === 'Domicílio' || S.campos.origem === 'Domicílio') return false;
+  return !!(uccDe(d) || acordoDe(d) || HOSP.some(p => p.nome === d) || CONHECIDOS.includes(d) || MORADAS_FIXAS[d] || INSTITUICAO.test(sem(d)) || /hospital|clinica|ipo|trofa|maternidade/.test(sem(d)));
+};
 const sitioConhecido = () => semCodu() && /^Hospital de Barcelos/.test(S.campos.origem || '') && CONHECIDOS.includes(S.campos.destino);
 const acordoAtual = () => semCodu() && (acordoDe(S.campos.origem) || acordoDe(S.campos.destino));
 /* Retorno do Hospital de Barcelos para estas unidades: só com o termo do hospital. */
