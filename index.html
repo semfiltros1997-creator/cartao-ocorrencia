@@ -959,7 +959,8 @@ function valorTransporte({ local, destino, precos, valorManual, volta, esperaH, 
 function consultasMapa(c) {
   const ref = refNua(c.ref || ''), lista = [];
   const sufixo = s => (s = s.replace(/[()]/g, '').replace(/^(?:Urgência|Pisos?)(?=,|$)/, 'Hospital de Barcelos'), foraDeBarcelos(s) || /\bbarcelos$/i.test(s) ? s + ', Portugal' : s + ', Barcelos, Portugal');
-  if (c.destHosp && c.destino) return [c.destino + ', ' + (c.freg || '') + ', Portugal'];
+  /* Hospital conhecido: pesquisa pelo nome. UCC e outros com morada guardada: pesquisa pela morada. */
+  if (c.destHosp && c.destino) return [(HOSP.some(p => p.nome === c.destino) || !c.local ? c.destino + ', ' + (c.freg || '') : c.local) + ', Portugal'];
   /* Numa alta, a morada do doente vem no destino. */
   if (!c.local && c.destino && c.destino !== 'Domicílio') {
     const dest = c.destino.replace(/^Casa,\s*/, '');
@@ -1350,6 +1351,8 @@ function desenhaOpcoes() {
 
 /* Moradas dos destinos (UCC, clínicas): a primeira vez escreve-se à mão; ao guardar ou enviar, fica neste telemóvel
    e depois vem junto ao escolher esse destino. */
+/* Moradas já confirmadas pelo dono; a escrita à mão neste telemóvel tem precedência. */
+const MORADAS_FIXAS = { 'UCC Geriave Vila Carolina': { rua: 'Rua do Mirante, nº 85, Areosa', freg: 'Viana do Castelo' } };
 const destinoComMorada = d => !!d && d !== 'Domicílio' && !/Consultas Externas$/.test(d) && !HOSP.some(p => p.nome === d);
 function lembraMorada() {
   const c = S.campos;
@@ -1360,7 +1363,7 @@ function lembraMorada() {
   gravar('cartao.moradas', m);
 }
 function moradaLembrada(d) {
-  const o = destinoComMorada(d) && ler('cartao.moradas', {})[d];
+  const o = destinoComMorada(d) && (ler('cartao.moradas', {})[d] || MORADAS_FIXAS[d]);
   if (!o || (S.campos.rua && !S.campos.destHosp)) return false;
   S.campos.rua = o.rua; S.campos.freg = o.freg; S.campos.local = juntaLocal();
   S.editados.rua = S.editados.freg = true; S.campos.destHosp = true;
