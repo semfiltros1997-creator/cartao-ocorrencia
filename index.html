@@ -1412,12 +1412,15 @@ function mensagem(modo) {
     add('Meio', meioQuartel(c.meio));
   } else {
     /* A prioridade vai logo no topo, ao lado da freguesia e da hora: Arcozelo · 23:22 · P1. */
-    const topo = [c.freg, c.hora, (c.prio || '').trim().toUpperCase()].filter(Boolean).join(' · ');
+    /* Contactante: quem deu o alerta (112, PSP, Popular…) vai no topo; o número, se houver, vai mais abaixo. */
+    const ct = (c.contacto || '').trim(), numero = (ct.match(/\+?\d[\d\s]{7,}\d/) || [''])[0].trim();
+    const quem = ct.replace(numero, '').replace(/[\s·,:-]+$/, '').replace(/^[\s·,:-]+/, '').trim();
+    const topo = [c.freg, c.hora, (c.prio || '').trim().toUpperCase(), quem ? 'Alerta ' + quem : ''].filter(Boolean).join(' · ');
     if (topo) linhas.push(topo);
     add('Morada', c.rua); add('Referência', c.ref); add('Destino', c.destino); add('Circunstâncias', c.desc);
     add('CODU', c.codu); add('Meio', meioQuartel(c.meio)); add('Apoio', (S.apoio || []).join(', '));
-    /* Quem deu o alerta, para a equipa poder ligar sem passar pela central. */
-    add('Contactante', (c.contacto || '').trim());
+    /* O número de quem deu o alerta, para a equipa poder ligar sem passar pela central. */
+    add('Contacto', numero);
   }
   const cob = cobranca();
   if (cob && cob.estado === 'cobrar') add('Cobrar', euros(cob.valor) || 'valor por confirmar');
