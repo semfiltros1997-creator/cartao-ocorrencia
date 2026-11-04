@@ -1239,7 +1239,9 @@ function desenha() {
   document.querySelector('.linhas').classList.toggle('conhecido', sitioConhecido());
   /* CODU nunca existe em transporte nem em transferência. */
   $('linhaCodu').hidden = semCodu() || !(!S.tipo || S.tipo === 'emergencia' || S.campos.codu);
-  $('linhaPrio').hidden = $('prioBloco').hidden = !(S.tipo === 'emergencia' || S.campos.prio);
+  /* A prioridade escolhe-se só nos botões P1 a P5; o campo escrito fica escondido. */
+  $('linhaPrio').hidden = true;
+  $('prioBloco').hidden = !(S.tipo === 'emergencia' || S.campos.prio);
   /* Pode sair mais de um meio em qualquer ocorrência que não seja transporte. */
   $('linhaMeio').hidden = false;
   $('meioBloco').hidden = !meiosAbertos;
