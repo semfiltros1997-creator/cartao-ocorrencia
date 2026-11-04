@@ -255,7 +255,7 @@ footer { color: var(--muted); font-size: 13px; max-width: 72ch; }
         <div class="numeros">
           <div class="campo" data-f="codu" id="linhaCodu"><div class="topo-campo"><label class="rotulo" for="f-codu">Nº CODU</label></div><input class="num" id="f-codu" inputmode="numeric" autocomplete="off"></div>
           <div class="campo" data-f="meio" id="linhaMeio"><div class="topo-campo"><label class="rotulo" for="f-meio">Meio</label></div><input class="num" id="f-meio" placeholder="Escrever: ABSC 11, VFCI…" autocomplete="off" autocapitalize="characters"></div>
-          <div class="campo" data-f="contacto"><div class="topo-campo"><label class="rotulo" for="f-contacto">Contactante</label></div><input class="num" id="f-contacto" list="contactantes" autocomplete="off"><datalist id="contactantes"><option value="112"></option><option value="117"></option><option value="PSP"></option><option value="GNR"></option><option value="Urgência"></option><option value="Piso 1"></option><option value="Piso 3"></option><option value="Piso 5"></option><option value="Consulta externa"></option></datalist></div>
+          <div class="campo" data-f="contacto"><div class="topo-campo"><label class="rotulo" for="f-contacto">Contactante</label></div><input class="num" id="f-contacto" list="contactantes" autocomplete="off"><datalist id="contactantes"><option value="112"></option><option value="117"></option><option value="PSP"></option><option value="GNR"></option><option value="Popular"></option><option value="Urgência"></option><option value="Piso 1"></option><option value="Piso 3"></option><option value="Piso 5"></option><option value="Consulta externa"></option></datalist></div>
           <div class="campo" data-f="prio" id="linhaPrio"><div class="topo-campo"><label class="rotulo" for="f-prio">Prioridade</label></div><input class="num" id="f-prio" autocomplete="off"></div>
         </div>
         <div class="campo largo" id="meioBloco"><div class="extras" id="meioChips" role="group" aria-label="Meios de emergência"></div></div>
@@ -1416,6 +1416,8 @@ function mensagem(modo) {
     if (topo) linhas.push(topo);
     add('Morada', c.rua); add('Referência', c.ref); add('Destino', c.destino); add('Circunstâncias', c.desc);
     add('CODU', c.codu); add('Meio', meioQuartel(c.meio)); add('Apoio', (S.apoio || []).join(', '));
+    /* Quem deu o alerta, para a equipa poder ligar sem passar pela central. */
+    add('Contactante', (c.contacto || '').trim());
   }
   const cob = cobranca();
   if (cob && cob.estado === 'cobrar') add('Cobrar', euros(cob.valor) || 'valor por confirmar');
