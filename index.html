@@ -1528,8 +1528,8 @@ const MORADAS_FIXAS = {
   'Lar Rainha Dona Leonor': { rua: 'Avenida dos Combatentes da Grande Guerra', freg: 'Barcelos' },
   'Dr. João Carvalho': { rua: 'Avenida Alcaides Faria, nº 130', freg: 'Barcelos' },
   'Centro de Solidariedade Social – Tamel São Veríssimo': { rua: 'Rua João Gomes Lourenço', freg: 'Tamel (São Veríssimo)' },
-  /* Na divisa entre Barcelos e Arcozelo: Barcelos chega para o mapa. */
-  'Hotel Lar Condes de Barcelos': { rua: 'Rua Arquiteto Borges Vinagre', freg: 'Barcelos' },
+  /* Na divisa entre Barcelos e Arcozelo; a freguesia é Arcozelo. */
+  'Hotel Lar Condes de Barcelos': { rua: 'Rua Arquiteto Borges Vinagre', freg: 'Arcozelo' },
 };
 /* Lares e unidades com acordo de transporte (folha de 14/10/2025): não se cobra; há fatura no fim do mês e preenche-se o verbete. */
 const ACORDOS = [
@@ -1542,7 +1542,7 @@ const ACORDOS = [
   ['Centro Social de Vila Cova', 'Vila Cova', /vila cova/],
   ['Centro de Solidariedade Social – Tamel São Veríssimo', 'Tamel (São Veríssimo)', /tamel\W*(?:s|sao) verissimo/],
   ['Centro Zulmira Pereira Simões – Roriz', 'Roriz', /zulmira|roriz/],
-  ['Hotel Lar Condes de Barcelos', 'Barcelos', /hotel lar|condes de barcelos/],
+  ['Hotel Lar Condes de Barcelos', 'Arcozelo', /hotel lar|condes de barcelos/],
   ['Santa Casa da Misericórdia – Barcelos', 'Barcelos', /^(?:lar (?:da )?)?(?:santa casa(?: da misericordia)?|misericordia|s ?c ?m)(?: (?:de )?barcelos)?$/],
   ['Lar Rainha Dona Leonor', 'Barcelos', /rainha d(?:ona)? ?leonor/],
   ['Santa Casa da Misericórdia – Silveiros', 'Silveiros', /silveiros/],
