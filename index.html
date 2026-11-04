@@ -255,11 +255,11 @@ footer { color: var(--muted); font-size: 13px; max-width: 72ch; }
         <div class="numeros">
           <div class="campo" data-f="codu" id="linhaCodu"><div class="topo-campo"><label class="rotulo" for="f-codu">Nº CODU</label></div><input class="num" id="f-codu" inputmode="numeric" autocomplete="off"></div>
           <div class="campo" data-f="meio" id="linhaMeio"><div class="topo-campo"><label class="rotulo" for="f-meio">Meio</label></div><input class="num" id="f-meio" placeholder="Escrever: ABSC 11, VFCI…" autocomplete="off" autocapitalize="characters"></div>
-          <div class="campo" data-f="contacto"><div class="topo-campo"><label class="rotulo" for="f-contacto">Contactante</label></div><input class="num" id="f-contacto" list="contactantes" autocomplete="off"><datalist id="contactantes"><option value="112"></option><option value="117"></option><option value="PSP"></option><option value="GNR"></option><option value="Popular"></option><option value="Urgência"></option><option value="Piso 1"></option><option value="Piso 3"></option><option value="Piso 5"></option><option value="Consulta externa"></option></datalist></div>
+          <div class="campo" data-f="contacto" id="linhaContacto"><div class="topo-campo"><label class="rotulo" for="f-contacto">Contactante</label></div><input class="num" id="f-contacto" list="contactantes" autocomplete="off"><datalist id="contactantes"><option value="112"></option><option value="117"></option><option value="PSP"></option><option value="GNR"></option><option value="Popular"></option><option value="Urgência"></option><option value="Piso 1"></option><option value="Piso 3"></option><option value="Piso 5"></option><option value="Consulta externa"></option></datalist></div>
           <div class="campo" data-f="prio" id="linhaPrio"><div class="topo-campo"><label class="rotulo" for="f-prio">Prioridade</label></div><input class="num" id="f-prio" autocomplete="off"></div>
         </div>
         <div class="campo largo" id="meioBloco"><div class="extras" id="meioChips" role="group" aria-label="Meios de emergência"></div></div>
-        <div class="campo largo" id="alertaBloco" hidden><div class="topo-campo"><span class="rotulo">Quem deu o alerta</span></div><div class="extras" id="alertaChips" role="group" aria-label="Quem deu o alerta"></div></div>
+        <div class="campo largo" id="alertaBloco" hidden><div class="topo-campo"><span class="rotulo">Quem deu o alerta</span></div><div class="extras" id="alertaChips" role="group" aria-label="Quem deu o alerta"></div><div id="linhaTel"><div class="topo-campo"><label class="rotulo" for="f-tel">Telefone</label></div><input class="num" id="f-tel" type="tel" inputmode="tel" placeholder="9__ ___ ___" autocomplete="off"></div></div>
         <div class="campo largo" id="prioBloco">
           <div class="prio-chips" id="prioChips" role="group" aria-label="Prioridade da triagem"></div>
         </div>
@@ -1277,8 +1277,12 @@ function desenha() {
   for (const b of $('prioChips').children) b.setAttribute('aria-pressed', String(b.dataset.p === prio));
   /* Apoio diferenciado (VMER, GNR…) só nas ocorrências que não são transporte. */
   $('apoioBloco').hidden = $('alertaBloco').hidden = !S.tipo || semCodu();
-  const alerta = partesContacto(S.campos.contacto).quem;
+  const { quem: alerta, numero: telAlerta } = partesContacto(S.campos.contacto);
   for (const b of $('alertaChips').children) b.setAttribute('aria-pressed', String(sem(alerta) === sem(b.textContent)));
+  /* Fora do transporte, o contactante escolhe-se nos botões e o número vai no campo Telefone. */
+  $('linhaContacto').hidden = !!S.tipo && !semCodu();
+  $('linhaTel').hidden = /^11[27]$/.test(alerta) && !telAlerta;
+  if (document.activeElement !== $('f-tel')) $('f-tel').value = telAlerta;
   for (const b of $('apoioChips').children) b.setAttribute('aria-pressed', String((S.apoio || []).includes(b.textContent)));
   $('avisoExemplo').hidden = !S.exemplo;
   const area = infoArea();
@@ -1409,7 +1413,8 @@ function partesContacto(v) {
   /* "112 912 345 678": o 112 é quem alertou, não o começo do número. */
   const fixo = ct.match(/^(112|117|psp|gnr|popular)(?![\w])[\s·,:-]*/i);
   if (fixo) ct = ct.slice(fixo[0].length);
-  const numero = (ct.match(/\+?\d[\d\s]{7,}\d/) || [''])[0].trim();
+  /* Depois de 112, PSP, Popular…, qualquer algarismo já é o número (mesmo a meio de o escrever). */
+  const numero = (ct.match(fixo ? /\+?\d[\d\s]*/ : /\+?\d[\d\s]{7,}\d/) || [''])[0].trim();
   const resto = ct.replace(numero, '').replace(/[\s·,:-]+$/, '').replace(/^[\s·,:-]+/, '').trim();
   return { quem: fixo ? ['112', '117', 'PSP', 'GNR', 'Popular'].find(x => sem(x) === sem(fixo[1])) + (resto ? ' ' + resto : '') : resto, numero };
 }
@@ -1938,11 +1943,21 @@ for (const a of ['112', '117', 'PSP', 'GNR', 'Popular']) {
     if (S.campos.contacto) S.editados.contacto = true; else delete S.editados.contacto;
     $('f-contacto').value = S.campos.contacto;
     desenha();
-    /* Popular: fica pronto para escrever o número. */
-    if (a === 'Popular' && quem !== a && !numero) { const i = $('f-contacto'); i.value += ' '; i.focus(); i.setSelectionRange(i.value.length, i.value.length); }
+    /* Popular: o cursor vai logo para o Telefone, com o teclado de números. */
+    if (a === 'Popular' && quem !== a && !numero) $('f-tel').focus();
   };
   $('alertaChips').appendChild(b);
 }
+/* Telefone: só algarismos, arrumados em blocos de três (912 345 678). */
+$('f-tel').addEventListener('input', () => {
+  const i = $('f-tel'), d = i.value.replace(/[^\d+]/g, '').slice(0, 13);
+  i.value = d.replace(/(\d{3})(?=\d)/g, '$1 ');
+  const { quem } = partesContacto(S.campos.contacto);
+  S.campos.contacto = [quem, i.value].filter(Boolean).join(' ');
+  if (S.campos.contacto) S.editados.contacto = true; else delete S.editados.contacto;
+  $('f-contacto').value = S.campos.contacto;
+  desenha();
+});
 for (const f of CAMPOS) $('f-' + f).addEventListener('input', e => {
   if (f === 'hora') e.target.value = mascaraHora(e.target.value);
   /* Apagar o que escreveu devolve o campo ao ditado. */
