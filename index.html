@@ -662,7 +662,9 @@ Valpaços;Valpaços`.split('\n').map(l => {
   const q = (partes.length === 1 || ent === conc ? 'Santa Casa da Misericórdia de ' + conc : ent + ', ' + (freg !== conc ? freg + ', ' : '') + conc);
   /* Palavras para reconhecer no ditado: o concelho, a freguesia e os nomes da entidade. */
   const curto = { 'Vila Nova de Gaia': 'Gaia', 'Vila Nova de Famalicão': 'Famalicão', 'Santa Maria da Feira': 'Feira', 'Póvoa de Varzim': 'Póvoa' }[conc];
-  const chaves = [...new Set([conc, freg, curto || '', ...partes].filter(p => p !== 'S.C.M.' && p.length > 3).map(p => sem(p).replace(/["().,]/g, '').trim()))];
+  /* A de Touguinhó também se diz "Toguinho" ou "Bonfim" (é no Hospital Senhor do Bonfim / Trofa Saúde do Bonfim). */
+  const apelidos = freg === 'Touguinhó' ? ['Toguinho', 'Bonfim'] : [];
+  const chaves = [...new Set([conc, freg, curto || '', ...apelidos, ...partes].filter(p => p !== 'S.C.M.' && p.length > 3).map(p => sem(p).replace(/["().,]/g, '').trim()))];
   return { nome: 'UCC ' + nome, freg: freg === conc ? conc : freg + ', ' + conc, conc, q, chaves, scm: partes.length === 2 && partes[1] === 'S.C.M.' };
 });
 const uccDe = d => UCC_LISTA.find(u => u.nome === String(d || '').replace(/^UCCI /, 'UCC '));
@@ -913,7 +915,14 @@ function parseOcorrencia(texto) {
       if (piso && !r.setor && PISOS[piso[1]]) r.setor = PISOS[piso[1]]; ruas.splice(0, ruas.length, ...ruas.filter(v => !saida(v))); }
   }
   /* Cuidados continuados ditos: o destino é a unidade e os pedaços do nome não ficam como rua ou freguesia. */
-  const cc = transp ? achaCC(n) || (/\bhotel lar\b/.test(n) ? 'Hotel Lar Condes de Barcelos' : '') : '';
+  /* "Da UCC de Touguinhó para a UCC de Vila Verde": com duas unidades ditas, a primeira é a origem. */
+  const ditasCC = transp ? [...n.matchAll(new RegExp(CC_FALA.source, 'g'))] : [];
+  let cc;
+  if (ditasCC.length >= 2) {
+    const ori = achaCC(n.slice(ditasCC[0].index, ditasCC[1].index));
+    if (ori) r.origem = ori;
+    cc = achaCC(n.slice(ditasCC[1].index));
+  } else cc = transp ? achaCC(n) || (/\bhotel lar\b/.test(n) ? 'Hotel Lar Condes de Barcelos' : '') : '';
   if (cc) {
     const resto = sem(cc).replace(/^ucci? /, '') + ' unidade';
     destinos.splice(0, destinos.length, cc);
@@ -1156,7 +1165,8 @@ const EXTRAS = { sentado: 'Sentado/a', deitado: 'Deitado/a', rodas: 'c/ rodas', 
 const temExtra = k => k in S.extrasManual ? S.extrasManual[k] : !!S.extrasDito[k];
 const comExtras = () => (S.tipo === 'transporte' || S.tipo === 'transferencia') && S.rotulo !== 'Transporte de cadáver';
 /* Numa consulta o doente vem muitas vezes de casa: o serviço do hospital não interessa. */
-const comSetor = () => comExtras() && S.rotulo !== 'Transporte para consulta';
+/* O serviço do hospital só interessa quando o doente sai da nossa urgência ou dos pisos. */
+const comSetor = () => comExtras() && S.rotulo !== 'Transporte para consulta' && /^Hospital de Barcelos – (?:Urgência|Piso)/.test(S.campos.origem || '');
 const textoExtras = () => comExtras() ? Object.keys(EXTRAS).filter(temExtra).map(k => EXTRAS[k]).join(' · ') : '';
 
 const semCodu = () => S.tipo === 'transporte' || S.tipo === 'transferencia';
@@ -1864,7 +1874,23 @@ function chipDestino(nome, v) {
 }
 for (const [nome, v] of [['Domicílio', 'Domicílio'], ['Consultas Externas', 'Hospital de Barcelos – Consultas Externas'], ['Hospital de Braga', 'Hospital de Braga'], ['Hospital de São João', 'Hospital de São João'], ['IPO Porto', 'IPO Porto'], ['Hospital de Santo António', 'Hospital de Santo António'], ['Hospital de Famalicão', 'Hospital de Famalicão'], ['Hospital de Viana do Castelo', 'Hospital de Viana do Castelo'], ['Trofa Saúde do Bonfim', 'Trofa Saúde do Bonfim'], ['Trofa Saúde Barcelos', 'Trofa Saúde Barcelos'], ['Dr. João Carvalho', 'Dr. João Carvalho']]) chipDestino(nome, v);
 /* As UCC e os lares com acordo são muitos: só aparecem ao escrever. */
-for (const x of [...UCC_LISTA, ...ACORDOS, { nome: 'Lar Rainha Dona Leonor' }].filter((x, i, l) => l.findIndex(y => y.nome === x.nome) === i)) chipDestino(x.nome, x.nome).dataset.cat = '1';
+const CATALOGO = [...UCC_LISTA, ...ACORDOS, { nome: 'Lar Rainha Dona Leonor' }].filter((x, i, l) => l.findIndex(y => y.nome === x.nome) === i).map(x => x.nome);
+/* Outros nomes por que se procura um lugar. */
+const APELIDOS = { 'UCC Vila do Conde – Touguinhó – Hospitais Senhor do Bonfim': 'toguinho touguinho bonfim trofa saude', 'Trofa Saúde do Bonfim': 'toguinho touguinho ucc hospital senhor' };
+for (const x of CATALOGO) chipDestino(x, x).dataset.cat = '1';
+/* Origem: a urgência e os pisos aparecem ao tocar; as UCC, lares e hospitais só ao escrever (transferência de uma UCC para outra, p. ex.). */
+for (const x of [...CATALOGO, ...HOSP.map(p => p.nome)]) {
+  const b = document.createElement('button');
+  b.type = 'button'; b.textContent = x; b.dataset.v = x; b.dataset.cat = '1';
+  b.onclick = () => {
+    const desmarca = S.campos.origem === x;
+    S.campos.origem = desmarca ? '' : x;
+    if (desmarca) delete S.editados.origem; else S.editados.origem = true;
+    $('f-origem').value = S.campos.origem;
+    fechaLista('origem');
+  };
+  $('origemChips').appendChild(b);
+}
 /* Destinos escritos à mão que já têm morada guardada também passam a aparecer nas opções. */
 for (const d of Object.keys(ler('cartao.moradas', {}))) if (![...$('destinoChips').children].some(b => b.dataset.v === d)) chipDestino(d, d);
 /* Origem e Destino: escreve-se à vontade; as opções abrem ao tocar no campo, vão filtrando pelo que se escreve
@@ -1877,7 +1903,7 @@ for (const k of ['origem', 'destino']) {
   const filtra = () => {
     const q = sem(campo.value.trim());
     const escolhido = [...caixa.children].some(b => b.dataset.v === campo.value);
-    const palavras = q.split(/\s+/).filter(Boolean), alvo = b => sem(b.textContent + ' ' + b.dataset.v).replace(/[–—"().,-]/g, ' ').split(/\s+/);
+    const palavras = q.split(/\s+/).filter(Boolean), alvo = b => sem(b.textContent + ' ' + b.dataset.v + ' ' + (APELIDOS[b.dataset.v] || '')).replace(/[–—"().,-]/g, ' ').split(/\s+/);
     /* Cada palavra escrita começa uma palavra da opção. Nas UCC, "ucc v" dá as que têm um nome começado por V (Vila Verde, Viana…). */
     const bate = b => {
       const porPalavra = palavras.every(p => alvo(b).some(w => w.startsWith(p)));
@@ -1887,8 +1913,14 @@ for (const k of ['origem', 'destino']) {
       const partes = sem(b.dataset.v).replace(/^ucci? /, '').split(' – ').map(x => x.replace(/["().,]/g, ''));
       return partes.some(x => x.startsWith(qn)) || (palavras.every(p => p.length >= 3) && porPalavra);
     };
-    /* Domicílio só é origem numa consulta. */
-    for (const b of caixa.children) b.hidden = b.dataset.consulta && S.rotulo !== 'Transporte para consulta' ? true : b.dataset.cat ? !q || escolhido || !bate(b) : !!q && !escolhido && !bate(b);
+    /* No Destino nada aparece antes de três letras; na Origem, só a urgência e os pisos. */
+    const curto = q.replace(/\s/g, '').length < 3;
+    for (const b of caixa.children) {
+      if (b.dataset.consulta && S.rotulo !== 'Transporte para consulta') b.hidden = true; /* Domicílio só é origem numa consulta. */
+      else if (k === 'destino' && b.dataset.v === 'Domicílio' && S.tipo === 'transferencia') b.hidden = true;
+      else if (b.dataset.cat || k === 'destino') b.hidden = curto || escolhido || !bate(b);
+      else b.hidden = !!q && !escolhido && !bate(b);
+    }
   };
   const abre = () => { filtra(); if (!listasAbertas[k]) { listasAbertas[k] = true; desenha(); } };
   campo.addEventListener('focus', abre);
